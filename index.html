@@ -50,7 +50,7 @@
         Mode: <strong>Log (Front)</strong>
     </p>
     <div style="font-size: 0.65em; color: #94a3b8; margin-top: -5px; letter-spacing: 0.5px;">
-        v0.1-Initial | BRANCH: MAIN
+        v0.2-Initial | BRANCH: MAIN
     </div>
 </div>
 
@@ -58,6 +58,7 @@
         <button id="mode-btn" class="active" onclick="toggleMode()">Mode: Log</button>
         <button class="flip" onclick="toggleView()">Flip Body</button>
         <button class="export" onclick="exportData()">CSV Export</button>
+        <button style="background: #ef4444;" onclick="clearAllData()">Clear Logs</button>
     </div>
 
     <div class="body-canvas" id="canvas-container">
@@ -224,6 +225,24 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url; a.download = `SymptomLog_${new Date().toLocaleDateString()}.csv`; a.click();
+        }
+        function clearAllData() {
+            // 1. Ask for confirmation
+            const confirmed = confirm("WARNING: This will permanently delete ALL your pain logs from this phone. This cannot be undone. Are you sure?");
+            
+            if (confirmed) {
+                // 2. Clear the specific data bucket
+                localStorage.removeItem('userSymptomData');
+                
+                // 3. Reset the local variable in the code
+                appLogs = [];
+                
+                // 4. Update the screen and heat map
+                updateRecentLogsList();
+                clearHeatMapColors();
+                
+                alert("All logs have been cleared.");
+            }
         }
 
         function closeModal() { document.getElementById('log-modal').style.display = 'none'; }
