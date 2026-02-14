@@ -1,122 +1,134 @@
 <!DOCTYPE html>
 <html lang="en">
-<link rel="manifest" href="manifest.json">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
-</script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>360 Symptom Tracker</title>
+    <title>360 Symptom Tracker Pro</title>
     <style>
-        :root { --bg: #f8fafc; --primary: #2563eb; --secondary: #64748b; --success: #059669; --text: #0f172a; }
+        :root { --bg: #f8fafc; --primary: #2563eb; --secondary: #64748b; --text: #0f172a; --border: #cbd5e1; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         
-        .header { text-align: center; width: 100%; }
+        .header { text-align: center; width: 100%; margin-bottom: 5px; }
         .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; }
         
         button { padding: 10px 15px; border-radius: 8px; border: none; background: var(--secondary); color: white; font-weight: 600; cursor: pointer; font-size: 14px; }
         button.active { background: var(--primary); }
-        button.export { background: #1e293b; }
         button.flip { background: #7c3aed; }
+        button.export { background: #1e293b; }
 
-        /* SVG Canvas */
-        .body-canvas { width: 320px; height: 520px; background: white; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); padding: 10px; position: relative; }
-        .body-part { fill: #e2e8f0; stroke: #94a3b8; stroke-width: 1.5; transition: 0.2s; cursor: pointer; }
+        .body-canvas { width: 340px; height: 550px; background: white; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); padding: 10px; position: relative; }
+        .body-part { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 0.8; transition: 0.2s; cursor: pointer; }
         .body-part:active { fill: #cbd5e1; }
         
-        /* Visibility Toggling */
         #view-back { display: none; }
         .showing-back #view-front { display: none; }
         .showing-back #view-back { display: block; }
 
-        /* Modal */
+        /* Modal Styles */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; width: 85%; max-width: 400px; padding: 20px; border-radius: 16px; position: relative; }
+        .modal-content { background: white; width: 85%; max-width: 400px; padding: 20px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); }
         input[type="range"] { width: 100%; margin: 15px 0; }
         
-        /* Heatmap Colors 1-10 */
-        .heat-1 { fill: #fef08a !important; } .heat-3 { fill: #facc15 !important; }
+        /* Heatmap Intensity Scales */
+        .heat-1 { fill: #fef9c3 !important; } .heat-3 { fill: #fde047 !important; }
         .heat-5 { fill: #f97316 !important; } .heat-7 { fill: #dc2626 !important; }
-        .heat-10 { fill: #7f1d1d !important; }
+        .heat-9 { fill: #991b1b !important; } .heat-10 { fill: #450a0a !important; }
         
-        .log-container { width: 100%; max-width: 400px; margin-top: 20px; }
-        .log-card { background: white; padding: 12px; margin-bottom: 8px; border-radius: 10px; border-left: 4px solid var(--primary); font-size: 13px; }
+        .log-card { background: white; padding: 12px; margin-top: 8px; border-radius: 10px; border-left: 4px solid var(--primary); font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); width: 100%; max-width: 340px; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h2>Symptom Mapper</h2>
-        <p id="status-text">Mode: <strong>Logging (Front)</strong></p>
+        <p id="status-text" style="font-size: 0.9em; color: var(--secondary);">Mode: <strong>Log (Front)</strong></p>
     </div>
 
     <div class="controls">
         <button id="mode-btn" class="active" onclick="toggleMode()">Mode: Log</button>
-        <button class="flip" onclick="toggleView()">Flip to Back</button>
+        <button class="flip" onclick="toggleView()">Flip View</button>
         <button class="export" onclick="exportData()">Export CSV</button>
     </div>
 
     <div class="body-canvas" id="canvas-container">
-        <svg viewBox="0 0 200 500" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 200 550" xmlns="http://www.w3.org/2000/svg">
             <g id="view-front">
-                <circle id="front-head" class="body-part" cx="100" cy="45" r="30" onclick="handlePartClick('Front Head')" />
-                <rect id="chest" class="body-part" x="60" y="85" width="80" height="70" rx="10" onclick="handlePartClick('Chest')" />
-                <rect id="abs" class="body-part" x="65" y="160" width="70" height="60" rx="5" onclick="handlePartClick('Abdomen')" />
-                <rect id="arm-l" class="body-part" x="20" y="90" width="30" height="130" rx="15" onclick="handlePartClick('Left Arm')" />
-                <rect id="arm-r" class="body-part" x="150" y="90" width="30" height="130" rx="15" onclick="handlePartClick('Right Arm')" />
-                <path id="thigh-l" class="body-part" d="M 65 225 L 55 350 L 95 350 L 100 225 Z" onclick="handlePartClick('Left Thigh')" />
-                <path id="thigh-r" class="body-part" d="M 135 225 L 145 350 L 105 350 L 100 225 Z" onclick="handlePartClick('Right Thigh')" />
+                <path id="head-l" class="body-part" d="M 100 15 A 30 30 0 0 0 70 45 L 100 45 Z" onclick="handlePartClick('Head Left')" />
+                <rect id="head-c" class="body-part" x="90" y="15" width="20" height="60" onclick="handlePartClick('Head Center')" />
+                <path id="head-r" class="body-part" d="M 100 15 A 30 30 0 0 1 130 45 L 100 45 Z" onclick="handlePartClick('Head Right')" />
+                
+                <rect id="chest-l" class="body-part" x="60" y="85" width="25" height="70" rx="2" onclick="handlePartClick('Chest Left')" />
+                <rect id="chest-c" class="body-part" x="85" y="85" width="30" height="70" onclick="handlePartClick('Chest Center')" />
+                <rect id="chest-r" class="body-part" x="115" y="85" width="25" height="70" rx="2" onclick="handlePartClick('Chest Right')" />
+
+                <rect id="abs-l" class="body-part" x="65" y="160" width="22" height="60" onclick="handlePartClick('Abdomen Left')" />
+                <rect id="abs-c" class="body-part" x="87" y="160" width="26" height="60" onclick="handlePartClick('Abdomen Center')" />
+                <rect id="abs-r" class="body-part" x="113" y="160" width="22" height="60" onclick="handlePartClick('Abdomen Right')" />
+
+                <rect id="groin-l" class="body-part" x="70" y="225" width="20" height="30" onclick="handlePartClick('Groin Left')" />
+                <rect id="groin-c" class="body-part" x="90" y="225" width="20" height="30" onclick="handlePartClick('Groin Center')" />
+                <rect id="groin-r" class="body-part" x="110" y="225" width="20" height="30" onclick="handlePartClick('Groin Right')" />
+
+                <rect id="f-arm-l" class="body-part" x="20" y="90" width="30" height="130" rx="15" onclick="handlePartClick('Left Arm')" />
+                <rect id="f-arm-r" class="body-part" x="150" y="90" width="30" height="130" rx="15" onclick="handlePartClick('Right Arm')" />
+                <path id="f-leg-l" class="body-part" d="M 70 260 L 55 480 L 95 480 L 95 260 Z" onclick="handlePartClick('Left Leg')" />
+                <path id="f-leg-r" class="body-part" d="M 130 260 L 145 480 L 105 480 L 105 260 Z" onclick="handlePartClick('Right Leg')" />
             </g>
 
             <g id="view-back">
-                <circle id="back-head" class="body-part" cx="100" cy="45" r="30" onclick="handlePartClick('Back Head')" />
-                <rect id="upper-back" class="body-part" x="60" y="85" width="80" height="60" rx="5" onclick="handlePartClick('Upper Back')" />
-                <rect id="mid-back" class="body-part" x="65" y="150" width="70" height="40" rx="5" onclick="handlePartClick('Mid Back')" />
-                <rect id="lower-back" class="body-part" x="65" y="195" width="70" height="35" rx="5" onclick="handlePartClick('Lower Back')" />
-                <rect id="glutes" class="body-part" x="60" y="235" width="80" height="50" rx="15" onclick="handlePartClick('Glutes')" />
-                <path id="calf-l" class="body-part" d="M 65 290 L 55 450 L 95 450 L 95 290 Z" onclick="handlePartClick('Left Calf')" />
-                <path id="calf-r" class="body-part" d="M 135 290 L 145 450 L 105 450 L 105 290 Z" onclick="handlePartClick('Right Calf')" />
+                <rect id="spine" class="body-part" x="95" y="85" width="10" height="150" onclick="handlePartClick('Spine')" />
+
+                <rect id="back-l-top" class="body-part" x="60" y="85" width="35" height="50" onclick="handlePartClick('Back Left Top')" />
+                <rect id="back-r-top" class="body-part" x="105" y="85" width="35" height="50" onclick="handlePartClick('Back Right Top')" />
+                
+                <rect id="back-l-mid" class="body-part" x="65" y="140" width="30" height="50" onclick="handlePartClick('Back Left Mid')" />
+                <rect id="back-r-mid" class="body-part" x="105" y="140" width="30" height="50" onclick="handlePartClick('Back Right Mid')" />
+
+                <rect id="back-l-low" class="body-part" x="65" y="195" width="30" height="40" onclick="handlePartClick('Back Left Low')" />
+                <rect id="back-r-low" class="body-part" x="105" y="195" width="30" height="40" onclick="handlePartClick('Back Right Low')" />
+
+                <rect id="glutes-l" class="body-part" x="60" y="240" width="38" height="50" rx="10" onclick="handlePartClick('Left Glute')" />
+                <rect id="glutes-r" class="body-part" x="102" y="240" width="38" height="50" rx="10" onclick="handlePartClick('Right Glute')" />
             </g>
         </svg>
     </div>
 
     <div id="modal" class="modal">
         <div class="modal-content">
-            <h3 id="modal-title">Select Intensity</h3>
-            <div id="history-section" style="display:none; margin-bottom:15px;"></div>
+            <h3 id="modal-title" style="margin-top:0;">Select Intensity</h3>
+            <div id="history-section" style="display:none; margin-bottom:15px; max-height: 150px; overflow-y: auto;"></div>
             <div id="form-section">
-                <p>Intensity: <span id="int-label">5</span>/10</p>
-                <input type="range" id="intensity" min="1" max="10" oninput="document.getElementById('int-label').innerText=this.value">
-                <button class="active" onclick="saveEntry()" style="width:100%">Log Symptom</button>
+                <p>Intensity: <span id="int-label" style="font-weight:bold; color:var(--primary);">5</span>/10</p>
+                <input type="range" id="intensity" min="1" max="10" value="5" oninput="document.getElementById('int-label').innerText=this.value">
+                <button class="active" onclick="saveEntry()" style="width:100%">Save Log</button>
             </div>
-            <button onclick="closeModal()" style="width:100%; margin-top:10px; background:#e2e8f0; color:#475569;">Close</button>
+            <button onclick="closeModal()" style="width:100%; margin-top:10px; background:#e2e8f0; color:#475569;">Cancel</button>
         </div>
     </div>
 
-    <div class="log-container" id="log-display"></div>
+    <div id="log-display" style="width:100%; max-width:340px; margin-top:15px;"></div>
 
     <script>
-        let mode = 'log'; // 'log' or 'heat'
-        let view = 'front'; // 'front' or 'back'
-        let selectedPart = '';
+        let mode = 'log'; let view = 'front'; let selectedPart = '';
         let logs = JSON.parse(localStorage.getItem('bodyData')) || [];
 
         function toggleMode() {
             mode = (mode === 'log') ? 'heat' : 'log';
             document.getElementById('mode-btn').innerText = `Mode: ${mode.toUpperCase()}`;
-            document.getElementById('status-text').innerHTML = `Mode: <strong>${mode} (${view})</strong>`;
+            document.getElementById('mode-btn').classList.toggle('active');
+            updateStatus();
             if (mode === 'heat') applyHeat(); else resetColors();
         }
 
         function toggleView() {
             view = (view === 'front') ? 'back' : 'front';
-            document.querySelector('.flip').innerText = `Flip to ${view === 'front' ? 'Back' : 'Front'}`;
             document.getElementById('canvas-container').classList.toggle('showing-back');
-            document.getElementById('status-text').innerHTML = `Mode: <strong>${mode} (${view})</strong>`;
+            updateStatus();
             if (mode === 'heat') applyHeat();
+        }
+
+        function updateStatus() {
+            document.getElementById('status-text').innerHTML = `Mode: <strong>${mode.charAt(0).toUpperCase() + mode.slice(1)} (${view.toUpperCase()})</strong>`;
         }
 
         function handlePartClick(part) {
@@ -129,7 +141,7 @@
                 document.getElementById('history-section').style.display = 'block';
                 const filtered = logs.filter(l => l.part === part);
                 document.getElementById('history-section').innerHTML = filtered.length ? 
-                    filtered.map(l => `<div class='log-card'>${l.date}: ${l.int}/10</div>`).join('') : "No data.";
+                    filtered.map(l => `<div style='padding:5px; border-bottom:1px solid #eee;'>${l.date}: ${l.int}/10</div>`).join('') : "No data.";
             } else {
                 document.getElementById('form-section').style.display = 'block';
                 document.getElementById('history-section').style.display = 'none';
@@ -141,45 +153,5 @@
                 part: selectedPart,
                 int: parseInt(document.getElementById('intensity').value),
                 date: new Date().toLocaleDateString(),
-                time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
-            };
-            logs.unshift(entry);
-            localStorage.setItem('bodyData', JSON.stringify(logs));
-            closeModal();
-            updateList();
-        }
-
-        function applyHeat() {
-            resetColors();
-            const scores = {};
-            logs.forEach(l => {
-                if(!scores[l.part]) scores[l.part] = {s:0, c:0};
-                scores[l.part].s += l.int; scores[l.part].c++;
-            });
-            for(let p in scores) {
-                const avg = Math.round(scores[p].s / scores[p].count || scores[p].s / scores[p].c);
-                const id = p.toLowerCase().replace(' ', '-');
-                const el = document.getElementById(id);
-                if(el) el.classList.add(`heat-${avg > 10 ? 10 : avg}`);
-            }
-        }
-
-        function exportData() {
-            let csv = "Date,Time,Body Part,Intensity\n";
-            logs.forEach(l => { csv += `${l.date},${l.time},${l.part},${l.int}\n`; });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = 'symptoms.csv'; a.click();
-        }
-
-        function resetColors() { document.querySelectorAll('.body-part').forEach(p => p.className.baseVal = "body-part"); }
-        function closeModal() { document.getElementById('modal').style.display = 'none'; }
-        function updateList() {
-            const display = document.getElementById('log-display');
-            display.innerHTML = "<h4>Recent Entries</h4>" + logs.slice(0,3).map(l => `<div class='log-card'><b>${l.part}</b>: ${l.int}/10 <br><small>${l.date}</small></div>`).join('');
-        }
-        updateList();
-    </script>
-</body>
-</html>
+                time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+                view
