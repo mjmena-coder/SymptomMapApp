@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v0.4.8</title>
+    <title>Symptom Mapper v0.4.9</title>
     <style>
         :root { --bg: #f8fafc; --primary: #2563eb; --text: #0f172a; --stroke: #334155; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         
         .header { text-align: center; margin-bottom: 10px; }
         .version-tag { font-size: 0.7rem; font-weight: bold; color: #64748b; letter-spacing: 1px; }
+
+        .test-row { display: flex; gap: 5px; width: 100%; max-width: 320px; margin-bottom: 10px; }
+        .test-btn { flex: 1; font-size: 10px; padding: 6px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: bold; }
 
         .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; width: 100%; }
         button { padding: 10px 14px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; }
@@ -20,17 +23,8 @@
         
         .body-part { stroke: var(--stroke); stroke-width: 1.2; transition: fill 0.3s ease; cursor: pointer; -webkit-tap-highlight-color: transparent; }
         
-        /* SYNCED PULSE (Only for Heat Classes) */
-        @keyframes sync-pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-
-        /* HEAT MODE: Strip Log Colors & Set Neutrals */
+        @keyframes sync-pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
         .heat-mode-on .body-part { fill: #f1f5f9 !important; stroke: #cbd5e1; }
-        
-        /* HEAT CLASSES (Only active when in Heat Mode) */
         .heat-mode-on .heat-low { fill: #fef08a !important; animation: sync-pulse 2s infinite ease-in-out; }
         .heat-mode-on .heat-med { fill: #f97316 !important; animation: sync-pulse 2s infinite ease-in-out; }
         .heat-mode-on .heat-high { fill: #b91c1c !important; animation: sync-pulse 2s infinite ease-in-out; }
@@ -39,8 +33,10 @@
         .showing-back #view-front { display: none; }
         .showing-back #view-back { display: block; }
 
-        .log-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.03); width: 100%; max-width: 320px; box-sizing: border-box; }
+        .log-card { position: relative; background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.03); width: 100%; max-width: 320px; box-sizing: border-box; }
         .active-card { border-left-color: #f59e0b; background: #fffbeb; }
+        
+        .del-btn { position: absolute; top: 8px; right: 8px; background: #fee2e2; color: #b91c1c; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; }
 
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; }
         .modal-content { background: white; width: 85%; padding: 25px; border-radius: 20px; text-align: center; }
@@ -50,7 +46,12 @@
 
     <div class="header">
         <h2 style="margin:0">Symptom Mapper</h2>
-        <div class="version-tag">v0.4.9 | STYLE ISOLATION</div>
+        <div class="version-tag">v0.4.9 | DIAGNOSTIC & ROUNDED</div>
+    </div>
+
+    <div class="test-row">
+        <button class="test-btn" onclick="requestPermission()">Enable Notify</button>
+        <button class="test-btn" onclick="sendTestNotify()">Test Notify</button>
     </div>
 
     <div class="controls">
@@ -109,9 +110,22 @@
     </div>
 
     <script>
-        const KEY = 'symp_v049';
+        const KEY = 'symp_v048_final';
         let mode = 'log'; let view = 'front'; let activePart = '';
         let data = JSON.parse(localStorage.getItem(KEY)) || [];
+
+        // Notification Logic
+        if ('serviceWorker' in navigator) {
+            const sw = 'self.addEventListener("notificationclick", (e) => e.notification.close());';
+            const blob = new Blob([sw], {type: 'text/javascript'});
+            navigator.serviceWorker.register(URL.createObjectURL(blob));
+        }
+        function requestPermission() { Notification.requestPermission().then(p => alert("Status: " + p)); }
+        async function sendTestNotify() {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg && Notification.permission === "granted") reg.showNotification("Mapper Active", { body: "Diagnostics working." });
+            else alert("Enable permissions first.");
+        }
 
         function doTap(name) {
             if (mode === 'heat') return;
@@ -132,6 +146,13 @@
             if(item) { item.end = Date.now(); save(); render(); }
         }
 
+        function deleteItem(id) {
+            if(confirm("Delete this log permanently?")) {
+                data = data.filter(x => x.id !== id);
+                save(); render();
+            }
+        }
+
         function toggleMode() {
             mode = (mode === 'log') ? 'heat' : 'log';
             const btn = document.getElementById('btn-mode');
@@ -150,14 +171,12 @@
         function applyHeat() {
             document.querySelectorAll('.body-part').forEach(el => el.classList.remove('heat-low', 'heat-med', 'heat-high'));
             if(mode !== 'heat') return;
-
             const scores = {};
             data.forEach(x => {
                 const id = x.part.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-');
                 if(!scores[id]) scores[id] = [];
                 scores[id].push(x.val);
             });
-
             for(let id in scores) {
                 const avg = scores[id].reduce((a,b) => a+b, 0) / scores[id].length;
                 const el = document.getElementById(id);
@@ -172,8 +191,11 @@
         function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
 
         function getDuration(start, end) {
-            const diff = Math.floor(((end || Date.now()) - start) / 1000);
-            return `${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m`;
+            const totalMs = (end || Date.now()) - start;
+            const totalMinutes = Math.max(1, Math.ceil(totalMs / 60000));
+            const h = Math.floor(totalMinutes / 60);
+            const m = totalMinutes % 60;
+            return h > 0 ? `${h}h ${m}m` : `${m}m`;
         }
 
         function render() {
@@ -185,22 +207,24 @@
             activeDiv.innerHTML = actives.length ? "<h4 style='margin:10px 0'>Active</h4>" + actives.map(x => `
                 <div class="log-card active-card">
                     <strong>${x.part}</strong> <br>
-                    <small>Duration: ${getDuration(x.start)}</small>
-                    <button onclick="endLog(${x.id})" style="background:#000; color:white; width:100%; margin-top:5px; padding:6px; border-radius:5px; border:none;">End Now</button>
+                    <small>Started: ${getDuration(x.start)} ago</small>
+                    <button onclick="endLog(${x.id})" style="background:#000; color:white; width:100%; margin-top:8px; padding:8px; border-radius:5px; border:none; font-weight:bold;">End Now</button>
+                    <button class="del-btn" onclick="deleteItem(${x.id})">Delete</button>
                 </div>
             `).join('') : "";
 
-            historyDiv.innerHTML = pasts.length ? "<h4 style='margin:10px 0'>History</h4>" + pasts.slice(0,5).map(x => `
+            historyDiv.innerHTML = pasts.length ? "<h4 style='margin:10px 0'>Recent History</h4>" + pasts.slice(0,10).map(x => `
                 <div class="log-card">
                     <strong>${x.part}</strong> (${x.val}/10)<br>
-                    <small>${getDuration(x.start, x.end)}</small>
+                    <small>Duration: ${getDuration(x.start, x.end)}</small>
+                    <button class="del-btn" onclick="deleteItem(${x.id})">Delete</button>
                 </div>
             `).join('') : "";
 
             applyHeat();
         }
 
-        function resetData() { if(confirm("Clear all data?")) { data = []; save(); render(); } }
+        function resetData() { if(confirm("Clear everything?")) { data = []; save(); render(); } }
         function exportCSV() {
             let csv = "Part,Intensity,Start,End,Duration\n";
             data.forEach(x => csv += `"${x.part}",${x.val},"${new Date(x.start).toLocaleString()}","${x.end ? new Date(x.end).toLocaleString() : 'Active'}","${getDuration(x.start, x.end)}"\n`);
@@ -208,6 +232,7 @@
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='symptoms.csv'; a.click();
         }
 
+        setInterval(render, 30000);
         render();
     </script>
 </body>
