@@ -3,14 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v0.4.3</title>
+    <title>Symptom Mapper v0.4.5</title>
     <style>
         :root { --bg: #f8fafc; --primary: #2563eb; --text: #0f172a; --stroke: #334155; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         
+        .header { text-align: center; margin-bottom: 15px; }
+        .version-tag { font-size: 0.7rem; font-weight: bold; color: #64748b; letter-spacing: 1px; }
+
         .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; width: 100%; }
         button { padding: 10px 14px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: bold; cursor: pointer; font-size: 13px; }
-        button.active { background: var(--primary); }
+        
+        .test-row { display: flex; gap: 5px; width: 100%; max-width: 340px; margin-bottom: 10px; }
+        .test-btn { flex: 1; font-size: 10px; padding: 6px; background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; }
 
         .body-canvas { width: 100%; max-width: 340px; background: white; border-radius: 20px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; box-sizing: border-box;}
         svg { width: 100%; height: auto; display: block; }
@@ -26,31 +31,27 @@
         .active-card { background: #fffbeb; border: 2px solid #f59e0b; }
         .timer-text { color: #b45309; font-weight: 800; font-size: 0.85em; background: #fef3c7; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 5px;}
 
-        .test-controls { display: flex; gap: 5px; margin-bottom: 15px; width: 100%; max-width: 320px; }
-        .test-btn { flex: 1; background: #f59e0b; font-size: 11px; padding: 8px; border-radius: 6px; border: none; color: white; font-weight: bold; }
-
-        .end-all-btn { background: #000; color: #fff; width: 100%; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; border: none; display: none; }
-
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; }
         .modal-content { background: white; width: 85%; padding: 25px; border-radius: 20px; text-align: center; }
         
-        .heat-1 { fill: #fef08a !important; } .heat-5 { fill: #f97316 !important; } .heat-10 { fill: #b91c1c !important; }
+        .heat-1 { fill: #fef08a !important; } .heat-10 { fill: #b91c1c !important; }
     </style>
 </head>
 <body>
 
-    <h2 style="margin:0">Symptom Mapper</h2>
-    <div style="font-size: 0.7rem; font-weight: bold; color: #94a3b8; letter-spacing: 1px; margin-bottom: 15px;">v0.4.4 | 1HR NOTIFY + TESTER</div>
+    <div class="header">
+        <h2 style="margin:0">Symptom Mapper</h2>
+        <div class="version-tag">v0.4.5 | ANDROID OPTIMIZED</div>
+    </div>
 
-    <div class="test-controls">
-        <button class="test-btn" onclick="testNotificationNow()">Instant Notify Test</button>
-        <button class="test-btn" style="background:#8b5cf6" onclick="requestNotify()">Enable Notifications</button>
+    <div class="test-row">
+        <button class="test-btn" onclick="requestPermission()">Enable Notifications</button>
+        <button class="test-btn" onclick="sendTestNotify()">Run Test Notify</button>
     </div>
 
     <div class="controls">
-        <button id="btn-mode" class="active" onclick="toggleMode()">Mode: Log</button>
         <button onclick="toggleView()" style="background:#7c3aed">Flip Body</button>
-        <button onclick="exportCSV()">Export</button>
+        <button onclick="exportCSV()">Export Data</button>
         <button onclick="resetData()" style="background:#ef4444">Reset</button>
     </div>
 
@@ -89,7 +90,6 @@
         </svg>
     </div>
 
-    <button id="end-all" class="end-all-btn" onclick="endAllActive()">End All Active Symptoms</button>
     <div id="list-active" style="width:100%; max-width:320px;"></div>
     <div id="list-history" style="width:100%; max-width:320px; margin-top:10px;"></div>
 
@@ -98,29 +98,31 @@
             <h3 id="pop-title" style="margin-top:0">Part</h3>
             <p>Intensity: <span id="int-val" style="font-weight:bold; color:var(--primary)">5</span>/10</p>
             <input type="range" id="int-slide" min="1" max="10" value="5" style="width:100%" oninput="document.getElementById('int-val').innerText=this.value">
-            <button class="active" onclick="confirmLog()" style="width:100%; margin-top:15px; padding:12px; border:none; border-radius:8px; font-weight:bold;">Start Tracking</button>
-            <button onclick="closePop()" style="width:100%; margin-top:10px; background:#e2e8f0; color:#475569; border:none; border-radius:8px; padding:10px;">Cancel</button>
+            <button style="background:var(--primary); width:100%; margin-top:15px; padding:12px; font-weight:bold;" onclick="confirmLog()">Start Tracking</button>
+            <button onclick="closePop()" style="width:100%; margin-top:10px; background:#e2e8f0; color:#475569; padding:10px;">Cancel</button>
         </div>
     </div>
 
     <script>
-        const KEY = 'symp_v044';
-        let mode = 'log'; let view = 'front'; let activePart = '';
+        const KEY = 'symp_v045';
+        let view = 'front'; let activePart = '';
         let data = JSON.parse(localStorage.getItem(KEY)) || [];
 
-        function requestNotify() {
-            if (!("Notification" in window)) {
-                alert("This browser does not support desktop notification");
-            } else {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") alert("Notifications Enabled!");
-                });
-            }
+        // SERVICE WORKER - Registering properly for persistent notifications
+        if ('serviceWorker' in navigator) {
+            const sw = 'self.addEventListener("push", (e) => {}); self.addEventListener("notificationclick", (e) => { e.notification.close(); });';
+            const blob = new Blob([sw], {type: 'text/javascript'});
+            navigator.serviceWorker.register(URL.createObjectURL(blob));
         }
 
-        function testNotificationNow() {
-            if (Notification.permission === "granted") {
-                new Notification("Test Successful!", { body: "This is what your 1-hour reminders will look like.", icon: "https://via.placeholder.com/128" });
+        function requestPermission() {
+            Notification.requestPermission().then(p => alert("Notification status: " + p));
+        }
+
+        async function sendTestNotify() {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg && Notification.permission === "granted") {
+                reg.showNotification("Mapper Active", { body: "Your phone is ready for 1-hour reminders.", vibrate: [200, 100, 200] });
             } else {
                 alert("Please click 'Enable Notifications' first.");
             }
@@ -135,46 +137,32 @@
         function closePop() { document.getElementById('pop').style.display = 'none'; }
 
         function confirmLog() {
-            const entry = { id: Date.now(), part: activePart, val: parseInt(document.getElementById('int-slide').value), start: new Date().getTime(), end: null, notified: false };
+            const entry = { id: Date.now(), part: activePart, val: parseInt(document.getElementById('int-slide').value), start: Date.now(), end: null, notified: false };
             data.unshift(entry);
             save(); closePop(); render();
         }
 
         function endLog(id) {
             const item = data.find(x => x.id === id);
-            if(item) { item.end = new Date().getTime(); save(); render(); }
+            if(item) { item.end = Date.now(); save(); render(); }
         }
 
-        function endAllActive() {
-            if(confirm("End all active logs?")) {
-                data.forEach(x => { if(!x.end) x.end = new Date().getTime(); });
-                save(); render();
-            }
-        }
-
-        function checkReminders() {
-            const now = new Date().getTime();
-            let sent = false;
+        async function checkReminders() {
+            const now = Date.now();
+            const reg = await navigator.serviceWorker.getRegistration();
             data.forEach(x => {
-                // Now set to 1 hour (3600000 ms)
+                // 1 Hour = 3,600,000ms
                 if(!x.end && (now - x.start) > 3600000 && !x.notified) {
-                    if (Notification.permission === "granted") {
-                        new Notification("Still Tracking?", { body: `You've been tracking ${x.part} for over an hour.`, vibrate: [200, 100, 200] });
+                    if (reg && Notification.permission === "granted") {
+                        reg.showNotification("Still Tracking?", { body: `You've been tracking ${x.part} for over an hour.` });
                         x.notified = true;
-                        sent = true;
+                        save();
                     }
                 }
             });
-            if(sent) save();
         }
 
         function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
-
-        function toggleMode() {
-            mode = (mode === 'log') ? 'heat' : 'log';
-            document.getElementById('btn-mode').innerText = `Mode: ${mode.toUpperCase()}`;
-            render();
-        }
 
         function toggleView() {
             view = (view === 'front') ? 'back' : 'front';
@@ -183,70 +171,40 @@
         }
 
         function getDuration(start, end) {
-            const finish = end || new Date().getTime();
-            const diff = Math.floor((finish - start) / 1000);
-            const hrs = Math.floor(diff / 3600);
-            const mins = Math.floor((diff % 3600) / 60);
-            return `${hrs}h ${mins}m`;
+            const diff = Math.floor(((end || Date.now()) - start) / 1000);
+            return `${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m`;
         }
 
         function render() {
             const activeDiv = document.getElementById('list-active');
             const historyDiv = document.getElementById('list-history');
-            const endAllBtn = document.getElementById('end-all');
-            
             const actives = data.filter(x => !x.end);
             const pasts = data.filter(x => x.end);
-
-            endAllBtn.style.display = actives.length > 1 ? 'block' : 'none';
 
             activeDiv.innerHTML = actives.length ? "<h4 style='margin:10px 0'>Active</h4>" + actives.map(x => `
                 <div class="log-card active-card">
                     <strong>${x.part}</strong> <br>
-                    <span class="timer-text">Duration: ${getDuration(x.start)}</span>
-                    <button onclick="endLog(${x.id})" style="background:#000; color:white; width:100%; margin-top:5px; padding:8px; border-radius:5px; border:none; font-weight:bold;">End Now</button>
+                    <span class="timer-text">${getDuration(x.start)}</span>
+                    <button onclick="endLog(${x.id})" style="background:#000; color:white; width:100%; margin-top:5px; padding:8px; border-radius:5px;">End Now</button>
                 </div>
             `).join('') : "";
 
-            historyDiv.innerHTML = pasts.length ? "<h4 style='margin:10px 0'>History</h4>" + pasts.slice(0,5).map(x => `
+            historyDiv.innerHTML = pasts.length ? "<h4 style='margin:10px 0'>Recent History</h4>" + pasts.slice(0,5).map(x => `
                 <div class="log-card">
                     <strong>${x.part}</strong> (${x.val}/10)<br>
                     <small>Duration: ${getDuration(x.start, x.end)}</small>
                 </div>
             `).join('') : "";
-
-            if(mode === 'heat') applyHeat(); else clearHeat();
             checkReminders();
         }
 
-        function applyHeat() {
-            clearHeat();
-            const scores = {};
-            data.forEach(x => {
-                const id = x.part.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-');
-                if(!scores[id]) scores[id] = {s:0, c:0};
-                scores[id].s += x.val; scores[id].c++;
-            });
-            for(let p in scores) {
-                const avg = Math.round(scores[p].s / scores[p].c);
-                const el = document.getElementById(p);
-                if(el) el.classList.add('heat-' + (avg > 10 ? 10 : avg));
-            }
-        }
-
-        function clearHeat() {
-            document.querySelectorAll('.body-part').forEach(el => {
-                el.classList.remove('heat-1','heat-2','heat-3','heat-4','heat-5','heat-6','heat-7','heat-8','heat-9','heat-10');
-            });
-        }
-
-        function resetData() { if(confirm("Reset all?")) { data = []; save(); render(); } }
+        function resetData() { if(confirm("Clear all data?")) { data = []; save(); render(); } }
 
         function exportCSV() {
-            let csv = "Part,Level,Start,End,Duration\n";
+            let csv = "Part,Intensity,Start,End,Duration\n";
             data.forEach(x => csv += `"${x.part}",${x.val},"${new Date(x.start).toLocaleString()}","${x.end ? new Date(x.end).toLocaleString() : 'Active'}","${getDuration(x.start, x.end)}"\n`);
             const blob = new Blob([csv], {type:'text/csv'});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='logs.csv'; a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='symptoms.csv'; a.click();
         }
 
         setInterval(render, 60000);
