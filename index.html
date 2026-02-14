@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v0.4.7</title>
+    <title>Symptom Mapper v0.4.8</title>
     <style>
         :root { --bg: #f8fafc; --primary: #2563eb; --text: #0f172a; --stroke: #334155; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
@@ -18,21 +18,22 @@
         .body-canvas { width: 100%; max-width: 320px; background: white; border-radius: 20px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; box-sizing: border-box;}
         svg { width: 100%; height: auto; display: block; }
         
-        .body-part { stroke: var(--stroke); stroke-width: 1.2; transition: fill 0.4s ease; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .body-part { stroke: var(--stroke); stroke-width: 1.2; transition: fill 0.3s ease; cursor: pointer; -webkit-tap-highlight-color: transparent; }
         
-        /* Neutral state for Heat Map Mode */
-        .heat-mode-on .body-part { fill: #f1f5f9 !important; stroke: #cbd5e1; }
-
-        /* Pulse Animation */
-        @keyframes pulse-heat {
+        /* SYNCED PULSE (Only for Heat Classes) */
+        @keyframes sync-pulse {
             0% { opacity: 1; }
-            50% { opacity: 0.6; }
+            50% { opacity: 0.4; }
             100% { opacity: 1; }
         }
 
-        .heat-low { fill: #fef08a !important; animation: pulse-heat 2s infinite ease-in-out; }
-        .heat-med { fill: #f97316 !important; animation: pulse-heat 1.5s infinite ease-in-out; }
-        .heat-high { fill: #b91c1c !important; animation: pulse-heat 1s infinite ease-in-out; }
+        /* HEAT MODE: Strip Log Colors & Set Neutrals */
+        .heat-mode-on .body-part { fill: #f1f5f9 !important; stroke: #cbd5e1; }
+        
+        /* HEAT CLASSES (Only active when in Heat Mode) */
+        .heat-mode-on .heat-low { fill: #fef08a !important; animation: sync-pulse 2s infinite ease-in-out; }
+        .heat-mode-on .heat-med { fill: #f97316 !important; animation: sync-pulse 2s infinite ease-in-out; }
+        .heat-mode-on .heat-high { fill: #b91c1c !important; animation: sync-pulse 2s infinite ease-in-out; }
 
         #view-back { display: none; }
         .showing-back #view-front { display: none; }
@@ -49,7 +50,7 @@
 
     <div class="header">
         <h2 style="margin:0">Symptom Mapper</h2>
-        <div class="version-tag">v0.4.7 | PULSE HEAT MAP</div>
+        <div class="version-tag">v0.4.9 | STYLE ISOLATION</div>
     </div>
 
     <div class="controls">
@@ -108,12 +109,12 @@
     </div>
 
     <script>
-        const KEY = 'symp_v047';
+        const KEY = 'symp_v049';
         let mode = 'log'; let view = 'front'; let activePart = '';
         let data = JSON.parse(localStorage.getItem(KEY)) || [];
 
         function doTap(name) {
-            if (mode === 'heat') return; // Disable logging in heat mode for clarity
+            if (mode === 'heat') return;
             activePart = name;
             document.getElementById('pop-title').innerText = name;
             document.getElementById('pop').style.display = 'flex';
@@ -148,12 +149,15 @@
 
         function applyHeat() {
             document.querySelectorAll('.body-part').forEach(el => el.classList.remove('heat-low', 'heat-med', 'heat-high'));
+            if(mode !== 'heat') return;
+
             const scores = {};
             data.forEach(x => {
                 const id = x.part.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-');
                 if(!scores[id]) scores[id] = [];
                 scores[id].push(x.val);
             });
+
             for(let id in scores) {
                 const avg = scores[id].reduce((a,b) => a+b, 0) / scores[id].length;
                 const el = document.getElementById(id);
@@ -193,10 +197,10 @@
                 </div>
             `).join('') : "";
 
-            if(mode === 'heat') applyHeat();
+            applyHeat();
         }
 
-        function resetData() { if(confirm("Clear all?")) { data = []; save(); render(); } }
+        function resetData() { if(confirm("Clear all data?")) { data = []; save(); render(); } }
         function exportCSV() {
             let csv = "Part,Intensity,Start,End,Duration\n";
             data.forEach(x => csv += `"${x.part}",${x.val},"${new Date(x.start).toLocaleString()}","${x.end ? new Date(x.end).toLocaleString() : 'Active'}","${getDuration(x.start, x.end)}"\n`);
