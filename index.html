@@ -190,4 +190,20 @@
         function clearHeat() {
             document.querySelectorAll('.body-part').forEach(el => {
                 const classes = Array.from(el.classList);
-                classes.forEach(
+                classes.forEach(c => { if(c.startsWith('heat-')) el.classList.remove(c); });
+            });
+        }
+
+        function resetData() { if(confirm("Permanently clear all logs?")) { data = []; saveAndRefresh(); } }
+
+        function exportCSV() {
+            let csv = "Part,Level,Start,End\n";
+            data.forEach(x => csv += `"${x.part}",${x.val},"${x.start}","${x.end || 'Active'}"\n`);
+            const blob = new Blob([csv], {type:'text/csv'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='symptoms_v3_3.csv'; a.click();
+        }
+
+        renderLists();
+    </script>
+</body>
+</html>
