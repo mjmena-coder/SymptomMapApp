@@ -137,7 +137,7 @@
                 <label><input type="checkbox" id="toggle-time"> <span id="label-time">Set Start Time</span></label>
                 <div id="drawer-time" class="drawer">
                     <div id="slider-wrap">
-                        <p style="margin:0">Began at <span id="time-preview" style="font-weight:bold; color:var(--primary)">Now</span></p>
+                        <p style="margin:0">Began at: <span id="time-preview" style="font-weight:bold; color:var(--primary)">Now</span></p>
                         <input type="range" id="time-slider" class="rev-slider" min="0" max="24" value="0" step="1" oninput="updateActiveSlider(this.value)">
                         <div style="display:flex; justify-content: space-between; font-size: 10px; color: #94a3b8;">
                             <span>Now</span><span>12h Ago</span>
@@ -320,7 +320,7 @@
             activeDiv.innerHTML = actives.length ? "<h4 style='margin:10px 0'>Active</h4>" + actives.map(x => `
                 <div class="log-card active-card">
                     <strong>${x.part}</strong> (${x.val}/10)<br><small>${x.types.join(' • ')}</small>
-                    <span style="display:block; font-size:0.75rem; color:var(--primary); font-weight:bold; margin-top:4px;">Started: ${fmtTime(x.start)}</span>
+                    <span style="display:block; font-size:0.75rem; color:var(--primary); font-weight:bold; margin-top:4px;">Began at: ${fmtTime(x.start)}</span>
                     <div style="display:flex; gap:5px; margin-top:8px;">
                         <button onclick="endLog(${x.id})" style="flex:2; background:#000; color:white; padding:8px; border-radius:5px; border:none; font-weight:bold;">End Now</button>
                         <button onclick="doEdit(${x.id})" style="flex:1; background:#64748b; color:white; padding:8px; border-radius:5px; border:none; font-weight:bold;">Edit</button>
