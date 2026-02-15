@@ -194,17 +194,77 @@
 
         function closePop() { document.getElementById('pop').style.display = 'none'; }
 
+        /* --- NEW/UPDATED JAVASCRIPT LOGIC --- */
+        
+        let editingId = null; // Track if we are editing or creating
+        
+        function doEdit(id) {
+            const item = data.find(x => x.id === id);
+            if (!item) return;
+        
+            editingId = id;
+            activePart = item.part;
+            
+            // 1. Set Title and Intensity
+            document.getElementById('pop-title').innerText = "Edit: " + item.part;
+            document.getElementById('int-slide').value = item.val;
+            document.getElementById('int-val').innerText = item.val;
+        
+            // 2. Set Types (Checkboxes)
+            document.querySelectorAll('.p-type').forEach(cb => {
+                cb.checked = item.types.includes(cb.value);
+            });
+            document.getElementById('toggle-type').checked = item.types.length > 0;
+            document.getElementById('drawer-type').style.display = item.types.length > 0 ? 'block' : 'none';
+        
+            // 3. Set Notes
+            document.getElementById('pop-notes').value = item.notes || '';
+            document.getElementById('toggle-notes').checked = !!item.notes;
+            document.getElementById('drawer-notes').style.display = item.notes ? 'block' : 'none';
+        
+            // 4. Set Time (Start Time)
+            document.getElementById('toggle-time').checked = true;
+            document.getElementById('drawer-time').style.display = 'block';
+            // Calculate how many 30-min blocks ago the 'start' was
+            const diffMs = Date.now() - item.start;
+            const blocks = Math.min(24, Math.max(0, Math.floor(diffMs / (30 * 60000))));
+            document.getElementById('time-slider').value = blocks;
+            handleSlider(blocks);
+        
+            // 5. NEW: Handle End Time (only if it has already ended)
+            // You could add a specific drawer for 'End Time' here if needed.
+        
+            document.getElementById('pop').style.display = 'flex';
+        }
+        
         function confirmLog() {
             const types = Array.from(document.querySelectorAll('.p-type:checked')).map(c => c.value);
             const notes = document.getElementById('toggle-notes').checked ? document.getElementById('pop-notes').value : "";
             const offset = document.getElementById('toggle-time').checked ? (document.getElementById('time-slider').value * 30 * 60000) : 0;
-            
-            data.unshift({ 
-                id: Date.now(), part: activePart, val: parseInt(document.getElementById('int-slide').value), 
-                start: Date.now() - offset, lastCheck: Date.now(), 
-                end: null, notes: notes, types: types
-            });
-            logToBox(`Logged: ${activePart}`);
+            const calculatedStart = Date.now() - offset;
+        
+            if (editingId) {
+                // UPDATE EXISTING
+                const idx = data.findIndex(x => x.id === editingId);
+                data[idx] = { 
+                    ...data[idx], 
+                    val: parseInt(document.getElementById('int-slide').value),
+                    types: types,
+                    notes: notes,
+                    start: calculatedStart
+                };
+                logToBox(`Updated: ${activePart}`);
+            } else {
+                // CREATE NEW
+                data.unshift({ 
+                    id: Date.now(), part: activePart, val: parseInt(document.getElementById('int-slide').value), 
+                    start: calculatedStart, lastCheck: Date.now(), 
+                    end: null, notes: notes, types: types
+                });
+                logToBox(`Logged: ${activePart}`);
+            }
+        
+            editingId = null; // Reset
             save(); closePop(); render();
         }
 
@@ -224,7 +284,10 @@
                     <strong>${x.part}</strong> (${x.val}/10)<br>
                     <small>${x.types.join(' • ')}</small>
                     <span class="checkin-timer">Update in: ${nextInMin}m</span>
-                    <button onclick="endLog(${x.id})" style="background:#000; color:white; width:100%; margin-top:8px; padding:8px; border-radius:5px; border:none; font-weight:bold;">End Now</button>
+                    <div style="display:flex; gap:5px; margin-top:8px;">
+                        <button onclick="endLog(${x.id})" style="flex:2; background:#000; color:white; padding:8px; border-radius:5px; border:none; font-weight:bold;">End Now</button>
+                        <button onclick="doEdit(${x.id})" style="flex:1; background:#64748b; color:white; padding:8px; border-radius:5px; border:none; font-weight:bold;">Edit</button>
+                    </div>
                     <button class="del-btn" onclick="deleteItem(${x.id})">Del</button>
                 </div>`}).join('') : "";
 
@@ -232,6 +295,9 @@
                 <div class="log-card">
                     <strong>${x.part}</strong> (${x.val}/10)<br>
                     <small>Duration: ${getDuration(x.start, x.end)}</small>
+                    <div style="margin-top:8px;">
+                        <button onclick="doEdit(${x.id})" style="width:100%; background:#64748b; color:white; padding:6px; border-radius:5px; border:none; font-size:11px;">Edit Details</button>
+                    </div>
                     <button class="del-btn" onclick="deleteItem(${x.id})">Del</button>
                 </div>`).join('') : "";
 
