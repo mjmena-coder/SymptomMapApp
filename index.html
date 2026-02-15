@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v1.1.0</title>
+    <title>Symptom Mapper v1.2.0</title>
     <style>
         :root { --bg: #f8fafc; --primary: #2563eb; --text: #0f172a; --stroke: #334155; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
@@ -52,13 +52,43 @@
         input[type="range"].rev-slider::-webkit-slider-thumb { appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); border: 3px solid white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
         #status-log { width: 100%; max-width: 320px; height: 60px; font-size: 10px; font-family: monospace; background: #000; color: #0f0; padding: 8px; border-radius: 8px; overflow-y: auto; margin-top: 10px; box-sizing: border-box; }
+
+        /* IMPORT MODAL */
+        .import-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 20px 0; }
+        .import-content { background: white; width: 90%; max-width: 420px; margin: auto; padding: 22px; border-radius: 20px; box-sizing: border-box; }
+        .import-drop-zone { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 30px 20px; text-align: center; cursor: pointer; background: #f8fafc; transition: 0.2s; margin-bottom: 16px; }
+        .import-drop-zone.drag-over { border-color: var(--primary); background: #eff6ff; }
+        .import-drop-zone input[type="file"] { display: none; }
+        .import-step { display: none; }
+        .import-step.active { display: block; }
+        .import-status { font-size: 12px; color: #64748b; margin: 8px 0; min-height: 20px; font-family: monospace; }
+        .import-status.error { color: #dc2626; }
+        .import-status.success { color: #16a34a; }
+        .preview-table { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 10px; max-height: 260px; overflow-y: auto; display: block; }
+        .preview-table th { background: #f1f5f9; padding: 6px 8px; text-align: left; font-weight: 600; position: sticky; top: 0; }
+        .preview-table td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        .preview-table tr:hover td { background: #f8fafc; }
+        .preview-row-skip td { opacity: 0.4; text-decoration: line-through; }
+        .badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .badge-ok { background: #dcfce7; color: #16a34a; }
+        .badge-warn { background: #fef9c3; color: #ca8a04; }
+        .badge-err { background: #fee2e2; color: #dc2626; }
+        .merge-option { display: flex; gap: 8px; margin: 12px 0; }
+        .merge-option label { flex: 1; border: 2px solid #e2e8f0; border-radius: 8px; padding: 10px; cursor: pointer; text-align: center; font-size: 12px; transition: 0.2s; }
+        .merge-option input[type="radio"] { display: none; }
+        .merge-option input[type="radio"]:checked + label { border-color: var(--primary); background: #eff6ff; color: var(--primary); font-weight: bold; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #cbd5e1; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn-primary { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 11px; font-weight: bold; cursor: pointer; width: 100%; font-size: 14px; }
+        .btn-secondary { background: #e2e8f0; color: #475569; border: none; border-radius: 8px; padding: 10px; font-weight: bold; cursor: pointer; width: 100%; font-size: 13px; margin-top: 8px; }
+        .btn-danger { background: #fee2e2; color: #b91c1c; border: none; border-radius: 8px; padding: 10px; font-weight: bold; cursor: pointer; width: 100%; font-size: 13px; margin-top: 8px; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h2 style="margin:0">Symptom Mapper</h2>
-        <div class="version-tag">v1.1.0 | EDIT SYMPTOMS</div>
+        <div class="version-tag">v1.2.0 | IMPORT + EDIT</div>
     </div>
 
     <div class="config-row">
@@ -70,6 +100,7 @@
         <button id="btn-mode" onclick="toggleMode()">Mode: Log</button>
         <button onclick="toggleView()" style="background:#7c3aed">Flip Body</button>
         <button onclick="exportCSV()">Export</button>
+        <button onclick="openImport()" style="background:#0891b2">Import</button>
         <button onclick="resetData()" style="background:#ef4444">Reset</button>
     </div>
 
@@ -172,6 +203,324 @@
             <button onclick="closePop()" style="width:100%; margin-top:10px; background:#e2e8f0; color:#475569; padding:10px; border-radius:8px; border:none;">Cancel</button>
         </div>
     </div>
+
+    <!-- IMPORT MODAL -->
+    <div id="import-modal" class="import-modal">
+        <div class="import-content">
+            <h3 style="margin:0 0 4px 0">Import Symptom Data</h3>
+            <p style="margin:0 0 16px 0; font-size:12px; color:#64748b;">Upload a CSV, Excel (.xlsx), or Word (.docx) file from your previous tracking. Claude will intelligently parse the data and map it to the app's format.</p>
+
+            <!-- STEP 1: File Pick -->
+            <div id="import-step-1" class="import-step active">
+                <div class="import-drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                    <input type="file" id="file-input" accept=".csv,.xlsx,.xls,.docx" onchange="handleFileSelect(this.files[0])">
+                    <div style="font-size:2rem; margin-bottom:8px;">📂</div>
+                    <div style="font-weight:bold; color:#334155;">Tap to choose file</div>
+                    <div style="font-size:11px; color:#94a3b8; margin-top:4px;">CSV · XLSX · DOCX supported</div>
+                </div>
+                <div class="import-status" id="step1-status"></div>
+                <button class="btn-secondary" onclick="closeImport()">Cancel</button>
+            </div>
+
+            <!-- STEP 2: Parsing / AI synthesis -->
+            <div id="import-step-2" class="import-step">
+                <div style="text-align:center; padding: 20px 0;">
+                    <div style="font-size:2rem; margin-bottom:12px;">🤖</div>
+                    <div style="font-weight:bold; margin-bottom:8px;">Analyzing your data…</div>
+                    <div class="import-status" id="step2-status" style="text-align:center;"></div>
+                </div>
+            </div>
+
+            <!-- STEP 3: Preview parsed results -->
+            <div id="import-step-3" class="import-step">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <strong id="preview-title">Preview</strong>
+                    <span id="preview-badge" class="badge badge-ok"></span>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="preview-table" id="preview-table">
+                        <thead><tr>
+                            <th>Body Part</th><th>Intensity</th><th>Start</th><th>Duration</th><th>Types</th><th>Notes</th><th>Status</th>
+                        </tr></thead>
+                        <tbody id="preview-body"></tbody>
+                    </table>
+                </div>
+                <div class="import-status" id="step3-status" style="margin-top:10px;"></div>
+                
+                <p style="font-size:12px; font-weight:bold; margin:14px 0 6px 0;">How should this be imported?</p>
+                <div class="merge-option">
+                    <input type="radio" id="opt-merge" name="import-mode" value="merge" checked>
+                    <label for="opt-merge">➕ Merge<br><small style="font-weight:normal; color:#64748b;">Add to existing data</small></label>
+                    <input type="radio" id="opt-replace" name="import-mode" value="replace">
+                    <label for="opt-replace">🔄 Replace<br><small style="font-weight:normal; color:#64748b;">Clear & reload</small></label>
+                </div>
+
+                <button class="btn-primary" onclick="commitImport()">Import Data</button>
+                <button class="btn-secondary" onclick="goToStep(1)">← Try Different File</button>
+                <button class="btn-secondary" onclick="closeImport()">Cancel</button>
+            </div>
+
+            <!-- STEP 4: Done -->
+            <div id="import-step-4" class="import-step">
+                <div style="text-align:center; padding: 20px 0;">
+                    <div style="font-size:2.5rem; margin-bottom:12px;">✅</div>
+                    <div style="font-weight:bold; font-size:1.1rem; margin-bottom:6px;" id="done-title">Import Complete</div>
+                    <div class="import-status success" id="done-status" style="text-align:center;"></div>
+                </div>
+                <button class="btn-primary" onclick="closeImport()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SheetJS for Excel parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Mammoth for Word doc parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
+    <script>
+        // ─── IMPORT GLOBALS ───────────────────────────────────────────────────
+        let parsedImportRows = [];
+
+        const BODY_PARTS = [
+            'Head Left','Head Center','Head Right','Neck / Throat',
+            'Chest Left','Chest Center','Chest Right',
+            'Abdomen Left','Abdomen Center','Abdomen Right',
+            'Groin Left','Groin Center','Groin Right',
+            'Left Arm','Right Arm','Left Leg','Right Leg',
+            'Spine','Back Left Top','Back Right Top',
+            'Back Left Mid','Back Right Mid','Back Left Low','Back Right Low',
+            'Left Glute','Right Glute','Left Hamstring','Right Hamstring',
+            'Left Calf','Right Calf'
+        ];
+
+        const PAIN_TYPES = ['Aching','Sharp','Burning','Dull','Thumping','Stabbing','Tingling','Cramping'];
+
+        // ─── MODAL NAVIGATION ────────────────────────────────────────────────
+        function openImport() {
+            goToStep(1);
+            document.getElementById('import-modal').style.display = 'flex';
+        }
+
+        function closeImport() {
+            document.getElementById('import-modal').style.display = 'none';
+            parsedImportRows = [];
+            document.getElementById('file-input').value = '';
+        }
+
+        function goToStep(n) {
+            for(let i = 1; i <= 4; i++) {
+                const el = document.getElementById(`import-step-${i}`);
+                el.classList.toggle('active', i === n);
+            }
+        }
+
+        // ─── DRAG AND DROP ───────────────────────────────────────────────────
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFileSelect(e.dataTransfer.files[0]); });
+
+        // ─── FILE SELECTION & PARSING ────────────────────────────────────────
+        async function handleFileSelect(file) {
+            if (!file) return;
+            const ext = file.name.split('.').pop().toLowerCase();
+            const status = document.getElementById('step1-status');
+
+            if (!['csv','xlsx','xls','docx'].includes(ext)) {
+                status.textContent = '⚠️ Unsupported file type. Use CSV, XLSX, or DOCX.';
+                status.className = 'import-status error';
+                return;
+            }
+
+            status.innerHTML = '<span class="spinner"></span> Reading file…';
+            status.className = 'import-status';
+            goToStep(2);
+
+            try {
+                let rawText = '';
+
+                if (ext === 'csv') {
+                    rawText = await file.text();
+                } else if (ext === 'xlsx' || ext === 'xls') {
+                    const buf = await file.arrayBuffer();
+                    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+                    // Convert all sheets to CSV text
+                    rawText = wb.SheetNames.map(name => {
+                        const ws = wb.Sheets[name];
+                        return `=== Sheet: ${name} ===\n` + XLSX.utils.sheet_to_csv(ws);
+                    }).join('\n\n');
+                } else if (ext === 'docx') {
+                    const buf = await file.arrayBuffer();
+                    const result = await mammoth.extractRawText({ arrayBuffer: buf });
+                    rawText = result.value;
+                }
+
+                // Truncate very large files to avoid token limits
+                const MAX_CHARS = 12000;
+                const truncated = rawText.length > MAX_CHARS;
+                const textToSend = truncated ? rawText.slice(0, MAX_CHARS) + '\n\n[...truncated for analysis]' : rawText;
+
+                document.getElementById('step2-status').innerHTML = '<span class="spinner"></span> Sending to Claude for analysis…';
+                await synthesizeWithAI(textToSend, file.name, truncated);
+
+            } catch(err) {
+                goToStep(1);
+                const s = document.getElementById('step1-status');
+                s.textContent = `❌ Error reading file: ${err.message}`;
+                s.className = 'import-status error';
+            }
+        }
+
+        // ─── AI SYNTHESIS ─────────────────────────────────────────────────────
+        async function synthesizeWithAI(rawText, filename, wasTruncated) {
+            const today = new Date().toISOString().slice(0,10);
+            const prompt = `You are a medical data parser. The user has historical symptom tracking data from a file called "${filename}". Your job is to extract symptom entries and convert them to a structured JSON format.
+
+Today's date is ${today}. Use this to resolve relative dates.
+
+The app tracks symptoms on a human body map. Valid body parts are ONLY from this list:
+${BODY_PARTS.join(', ')}
+
+For body part matching: map any description to the closest valid part (e.g. "lower back left" → "Back Left Low", "knee" → "Left Leg" or "Right Leg", "head" → "Head Center", "neck" → "Neck / Throat", "stomach" → "Abdomen Center", "shoulder" → map to nearest arm/back part).
+
+Valid pain types (can be multiple): ${PAIN_TYPES.join(', ')}
+
+For each symptom entry found, output a JSON array. Each entry must have:
+- "part": string (must be from valid body parts list)
+- "val": integer 1-10 (intensity/severity — infer from text like "mild"=2-3, "moderate"=5-6, "severe"=8-9; if number given use it)
+- "start": ISO 8601 datetime string (infer from any date/time info; if only date given use 09:00; if no date use a reasonable estimate based on context)
+- "end": ISO 8601 datetime string or null (null if still active/unknown)
+- "types": array of strings from valid pain types (empty array if unknown)
+- "notes": string (any additional notes, original description, context — be generous here)
+- "confidence": "high" | "medium" | "low" (how confident you are in this mapping)
+- "originalText": string (the raw text fragment this was parsed from, max 80 chars)
+
+Rules:
+- Skip entries that have no discernible body location
+- If intensity is completely unclear, use 5
+- Be generous — err on the side of including entries rather than skipping
+- Return ONLY valid JSON array, no markdown, no explanation, nothing else
+
+Raw data to parse:
+${rawText}`;
+
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 4000,
+                        messages: [{ role: 'user', content: prompt }]
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error?.message || 'API error');
+                }
+
+                const text = result.content.map(b => b.text || '').join('');
+                const clean = text.replace(/```json|```/g, '').trim();
+                const rows = JSON.parse(clean);
+
+                if (!Array.isArray(rows)) throw new Error('Expected array from AI');
+
+                parsedImportRows = rows;
+                showPreview(rows, wasTruncated);
+
+            } catch(err) {
+                goToStep(1);
+                const s = document.getElementById('step1-status');
+                s.innerHTML = `❌ Analysis failed: ${err.message}<br><small>Check that your file has readable symptom data.</small>`;
+                s.className = 'import-status error';
+            }
+        }
+
+        // ─── PREVIEW ─────────────────────────────────────────────────────────
+        function showPreview(rows, wasTruncated) {
+            const tbody = document.getElementById('preview-body');
+            tbody.innerHTML = '';
+
+            const ok = rows.filter(r => r.confidence !== 'low').length;
+            const total = rows.length;
+
+            document.getElementById('preview-title').textContent = `${total} entries found`;
+            const badge = document.getElementById('preview-badge');
+            badge.textContent = `${ok} ready`;
+            badge.className = `badge ${ok === total ? 'badge-ok' : ok > 0 ? 'badge-warn' : 'badge-err'}`;
+
+            rows.forEach((r, i) => {
+                const tr = document.createElement('tr');
+                if (r.confidence === 'low') tr.className = 'preview-row-skip';
+
+                const startDate = r.start ? new Date(r.start) : null;
+                const endDate = r.end ? new Date(r.end) : null;
+                const startStr = startDate ? startDate.toLocaleDateString([], {month:'short',day:'numeric'}) + ' ' + startDate.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '?';
+                const durationStr = (startDate && endDate) ? getDuration(startDate.getTime(), endDate.getTime()) : (r.end ? 'ended' : 'open');
+
+                const confidenceBadge = {
+                    'high': '<span class="badge badge-ok">✓</span>',
+                    'medium': '<span class="badge badge-warn">~</span>',
+                    'low': '<span class="badge badge-err">?</span>'
+                }[r.confidence] || '';
+
+                tr.innerHTML = `
+                    <td><strong>${r.part}</strong><br><small style="color:#94a3b8; font-size:9px;">${(r.originalText||'').slice(0,40)}</small></td>
+                    <td style="text-align:center;">${r.val}/10</td>
+                    <td>${startStr}</td>
+                    <td>${durationStr}</td>
+                    <td style="font-size:10px;">${(r.types||[]).join(', ') || '—'}</td>
+                    <td style="font-size:10px; max-width:80px; word-break:break-word;">${(r.notes||'').slice(0,60)}</td>
+                    <td style="text-align:center;">${confidenceBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            let statusMsg = '';
+            if (wasTruncated) statusMsg += '⚠️ File was large — only first portion was analyzed. ';
+            if (rows.filter(r => r.confidence === 'low').length > 0) statusMsg += `${rows.filter(r=>r.confidence==='low').length} low-confidence entries (strikethrough) will be skipped.`;
+
+            document.getElementById('step3-status').textContent = statusMsg;
+            goToStep(3);
+        }
+
+        // ─── COMMIT IMPORT ───────────────────────────────────────────────────
+        function commitImport() {
+            const importMode = document.querySelector('input[name="import-mode"]:checked').value;
+            const toImport = parsedImportRows.filter(r => r.confidence !== 'low');
+
+            const newEntries = toImport.map(r => ({
+                id: Date.now() + Math.random(),
+                part: r.part,
+                val: Math.max(1, Math.min(10, parseInt(r.val) || 5)),
+                start: r.start ? new Date(r.start).getTime() : Date.now(),
+                end: r.end ? new Date(r.end).getTime() : null,
+                lastCheck: Date.now(),
+                types: Array.isArray(r.types) ? r.types : [],
+                notes: r.notes || '',
+                imported: true
+            }));
+
+            if (importMode === 'replace') {
+                data = newEntries;
+            } else {
+                // Merge: deduplicate by checking for very similar entries
+                data = [...data, ...newEntries];
+            }
+
+            // Sort by most recent first
+            data.sort((a, b) => b.start - a.start);
+            save();
+            render();
+
+            document.getElementById('done-title').textContent = importMode === 'replace' ? 'Data Replaced' : 'Data Merged';
+            document.getElementById('done-status').textContent = `${newEntries.length} entries imported successfully.`;
+            logToBox(`Import: ${newEntries.length} entries ${importMode === 'replace' ? 'replaced' : 'merged'}`);
+            goToStep(4);
+        }
+    </script>
 
     <script>
         const KEY = 'symp_v100_final';
