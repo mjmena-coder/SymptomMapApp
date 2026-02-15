@@ -3,121 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v1.0.0.8</title>
+    <title>Symptom Mapper v0.4.3</title>
     <style>
         :root { --bg: #f8fafc; --primary: #2563eb; --text: #0f172a; --stroke: #334155; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
-        .config-row { background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; width: 100%; max-width: 320px; font-size: 13px; margin-bottom: 10px; }
-        .input-mini { width: 50px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; }
-        .log-card { background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); width: 100%; max-width: 320px; box-sizing: border-box; position: relative; }
-        #status-log { width: 100%; max-width: 320px; height: 60px; font-size: 10px; font-family: monospace; background: #000; color: #0f0; padding: 5px; border-radius: 5px; overflow-y: auto; margin-top: 10px; }
-        .debug-timer { display: block; font-size: 0.75rem; color: #ef4444; font-weight: bold; margin-top: 4px; }
+        
+        .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; width: 100%; }
+        button { padding: 10px 14px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: bold; cursor: pointer; font-size: 13px; }
+        button.active { background: var(--primary); }
+
+        .body-canvas { width: 100%; max-width: 340px; background: white; border-radius: 20px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; box-sizing: border-box;}
+        svg { width: 100%; height: auto; display: block; }
+        
+        .body-part { stroke: var(--stroke); stroke-width: 1; transition: 0.2s; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .body-part:active { opacity: 0.6; fill: #94a3b8 !important; }
+        
+        #view-back { display: none; }
+        .showing-back #view-front { display: none; }
+        .showing-back #view-back { display: block; }
+
+        .log-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.03); width: 100%; max-width: 320px; box-sizing: border-box; }
+        .active-card { background: #fffbeb; border: 2px solid #f59e0b; }
+        .timer-text { color: #b45309; font-weight: 800; font-size: 0.85em; background: #fef3c7; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 5px;}
+
+        .test-controls { display: flex; gap: 5px; margin-bottom: 15px; width: 100%; max-width: 320px; }
+        .test-btn { flex: 1; background: #f59e0b; font-size: 11px; padding: 8px; border-radius: 6px; border: none; color: white; font-weight: bold; }
+
+        .end-all-btn { background: #000; color: #fff; width: 100%; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; border: none; display: none; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 85%; padding: 25px; border-radius: 20px; text-align: center; }
+        
+        .heat-1 { fill: #fef08a !important; } .heat-5 { fill: #f97316 !important; } .heat-10 { fill: #b91c1c !important; }
     </style>
 </head>
 <body>
 
     <h2 style="margin:0">Symptom Mapper</h2>
-    <div style="font-size:0.7rem; color:#64748b; margin-bottom:10px;">v1.0.0 | REV 8 (LEGACY MODE)</div>
+    <div style="font-size: 0.7rem; font-weight: bold; color: #94a3b8; letter-spacing: 1px; margin-bottom: 15px;">v0.4.4 | 1HR NOTIFY + TESTER</div>
 
-    <div class="config-row">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span>Remind Every:</span>
-            <span><input type="number" id="remind-min" class="input-mini" value="2"> mins</span>
-        </div>
-        <div style="display:flex; gap:5px; margin-top:10px;">
-            <button onclick="initNotifications()" style="flex:1; padding:8px; background:var(--primary); color:white; border:none; border-radius:5px; font-weight:bold;">1. Enable</button>
-            <button onclick="sendLegacyTest()" style="flex:1; padding:8px; background:#000; color:white; border:none; border-radius:5px; font-weight:bold;">2. Force Test</button>
+    <div class="test-controls">
+        <button class="test-btn" onclick="testNotificationNow()">Instant Notify Test</button>
+        <button class="test-btn" style="background:#8b5cf6" onclick="requestNotify()">Enable Notifications</button>
+    </div>
+
+    <div class="controls">
+        <button id="btn-mode" class="active" onclick="toggleMode()">Mode: Log</button>
+        <button onclick="toggleView()" style="background:#7c3aed">Flip Body</button>
+        <button onclick="exportCSV()">Export</button>
+        <button onclick="resetData()" style="background:#ef4444">Reset</button>
+    </div>
+
+    <div class="body-canvas" id="canvas-container">
+        <svg viewBox="0 0 200 480">
+            <g id="view-front">
+                <path id="head-left" class="body-part" fill="#f5f3ff" d="M100,20 Q70,20 70,50 L100,50 Z" onclick="doTap('Head Left')" />
+                <rect id="head-center" class="body-part" fill="#ede9fe" x="90" y="20" width="20" height="30" onclick="doTap('Head Center')" />
+                <path id="head-right" class="body-part" fill="#f5f3ff" d="M100,20 Q130,20 130,50 L100,50 Z" onclick="doTap('Head Right')" />
+                <rect id="neck" class="body-part" fill="#f0f9ff" x="85" y="55" width="30" height="15" rx="2" onclick="doTap('Neck / Throat')" />
+                <rect id="chest-left" class="body-part" fill="#eff6ff" x="50" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Left')" />
+                <rect id="chest-center" class="body-part" fill="#dbeafe" x="90" y="75" width="20" height="70" onclick="doTap('Chest Center')" />
+                <rect id="chest-right" class="body-part" fill="#eff6ff" x="110" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Right')" />
+                <rect id="abdomen-left" class="body-part" fill="#f0fdfa" x="55" y="145" width="35" height="50" onclick="doTap('Abdomen Left')" />
+                <rect id="abdomen-center" class="body-part" fill="#ccfbf1" x="90" y="145" width="20" height="50" onclick="doTap('Abdomen Center')" />
+                <rect id="abdomen-right" class="body-part" fill="#f0fdfa" x="110" y="145" width="35" height="50" onclick="doTap('Abdomen Right')" />
+                <rect id="groin-left" class="body-part" fill="#fffbeb" x="65" y="195" width="25" height="35" onclick="doTap('Groin Left')" />
+                <rect id="groin-center" class="body-part" fill="#fef3c7" x="90" y="195" width="20" height="35" onclick="doTap('Groin Center')" />
+                <rect id="groin-right" class="body-part" fill="#fffbeb" x="110" y="195" width="25" height="35" onclick="doTap('Groin Right')" />
+                <path id="left-arm" class="body-part" fill="#f8fafc" d="M50,80 Q20,80 20,110 L35,220 Q45,230 55,220 Z" onclick="doTap('Left Arm')" />
+                <path id="right-arm" class="body-part" fill="#f8fafc" d="M150,80 Q180,80 180,110 L165,220 Q155,230 145,220 Z" onclick="doTap('Right Arm')" />
+                <path id="left-leg" class="body-part" fill="#f8fafc" d="M65,230 L90,230 L90,430 Q75,445 60,430 Z" onclick="doTap('Left Leg')" />
+                <path id="right-leg" class="body-part" fill="#f8fafc" d="M110,230 L135,230 L135,430 Q120,445 105,430 Z" onclick="doTap('Right Leg')" />
+            </g>
+            <g id="view-back">
+                <rect id="spine" class="body-part" fill="#f1f5f9" x="88" y="70" width="24" height="170" onclick="doTap('Spine')" />
+                <rect id="back-left-top" class="body-part" fill="#f8fafc" x="45" y="70" width="43" height="55" onclick="doTap('Back Left Top')" />
+                <rect id="back-right-top" class="body-part" fill="#f8fafc" x="112" y="70" width="43" height="55" onclick="doTap('Back Right Top')" />
+                <rect id="back-left-mid" class="body-part" fill="#f8fafc" x="48" y="125" width="40" height="55" onclick="doTap('Back Left Mid')" />
+                <rect id="back-right-mid" class="body-part" fill="#f8fafc" x="112" y="125" width="40" height="55" onclick="doTap('Back Right Mid')" />
+                <rect id="back-left-low" class="body-part" fill="#f8fafc" x="50" y="180" width="38" height="60" onclick="doTap('Back Left Low')" />
+                <rect id="back-right-low" class="body-part" fill="#f8fafc" x="112" y="180" width="38" height="60" onclick="doTap('Back Right Low')" />
+                <rect id="left-glute" class="body-part" fill="#f1f5f9" x="50" y="240" width="45" height="55" rx="15" onclick="doTap('Left Glute')" />
+                <rect id="right-glute" class="body-part" fill="#f1f5f9" x="105" y="240" width="45" height="55" rx="15" onclick="doTap('Right Glute')" />
+            </g>
+        </svg>
+    </div>
+
+    <button id="end-all" class="end-all-btn" onclick="endAllActive()">End All Active Symptoms</button>
+    <div id="list-active" style="width:100%; max-width:320px;"></div>
+    <div id="list-history" style="width:100%; max-width:320px; margin-top:10px;"></div>
+
+    <div id="pop" class="modal">
+        <div class="modal-content">
+            <h3 id="pop-title" style="margin-top:0">Part</h3>
+            <p>Intensity: <span id="int-val" style="font-weight:bold; color:var(--primary)">5</span>/10</p>
+            <input type="range" id="int-slide" min="1" max="10" value="5" style="width:100%" oninput="document.getElementById('int-val').innerText=this.value">
+            <button class="active" onclick="confirmLog()" style="width:100%; margin-top:15px; padding:12px; border:none; border-radius:8px; font-weight:bold;">Start Tracking</button>
+            <button onclick="closePop()" style="width:100%; margin-top:10px; background:#e2e8f0; color:#475569; border:none; border-radius:8px; padding:10px;">Cancel</button>
         </div>
     </div>
 
-    <button onclick="doTap('Test Symptom')" style="width:100%; max-width:320px; padding:12px; background:#64748b; color:white; border:none; border-radius:8px; font-weight:bold; margin-bottom:15px;">+ Log Test Symptom</button>
-
-    <div id="list-active" style="width:100%; max-width:320px;"></div>
-    <div id="status-log">LOG: Waiting for Enable...</div>
-
     <script>
-        const KEY = 'symp_v100_final';
+        const KEY = 'symp_v044';
+        let mode = 'log'; let view = 'front'; let activePart = '';
         let data = JSON.parse(localStorage.getItem(KEY)) || [];
 
-        function logToBox(msg) {
-            const box = document.getElementById('status-log');
-            box.innerHTML += `<br>[${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}] ${msg}`;
-            box.scrollTop = box.scrollHeight;
+        function requestNotify() {
+            if (!("Notification" in window)) {
+                alert("This browser does not support desktop notification");
+            } else {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") alert("Notifications Enabled!");
+                });
+            }
         }
 
-        function initNotifications() {
-            Notification.requestPermission().then(perm => {
-                logToBox("Permission: " + perm);
-                if(perm === 'granted') {
-                    // Just a simple native notification - the "Old Way"
-                    new Notification("Notifications Enabled!");
-                }
-            });
-        }
-
-        function sendLegacyTest() {
-            logToBox("Sending Simple Notification...");
-            // No tags, no renotify, no extra bloat.
-            new Notification("Test Working!");
+        function testNotificationNow() {
+            if (Notification.permission === "granted") {
+                new Notification("Test Successful!", { body: "This is what your 1-hour reminders will look like.", icon: "https://via.placeholder.com/128" });
+            } else {
+                alert("Please click 'Enable Notifications' first.");
+            }
         }
 
         function doTap(name) {
-            data.unshift({ 
-                id: Date.now(), part: name, start: Date.now(), lastReminded: Date.now(), end: null 
-            });
-            save(); render();
+            activePart = name;
+            document.getElementById('pop-title').innerText = name;
+            document.getElementById('pop').style.display = 'flex';
         }
 
-        function checkLogic() {
-            const interval = parseInt(document.getElementById('remind-min').value) * 60000;
-            const now = Date.now();
-            let count = 0;
+        function closePop() { document.getElementById('pop').style.display = 'none'; }
 
-            data.forEach(s => {
-                if (!s.end) {
-                    const elapsed = now - (s.lastReminded || s.start);
-                    if (elapsed >= interval) {
-                        s.lastReminded = now;
-                        count++;
-                    }
-                }
-            });
-
-            if (count > 0) {
-                save();
-                logToBox(`Fired for ${count} items.`);
-                new Notification("Symptom Check-in", { body: `Update your ${count} active symptoms.` });
-            }
-            render();
-        }
-
-        function render() {
-            const activeDiv = document.getElementById('list-active');
-            const actives = data.filter(x => !x.end);
-            const interval = parseInt(document.getElementById('remind-min').value) * 60000;
-            const now = Date.now();
-
-            activeDiv.innerHTML = actives.map(x => {
-                const nextInMs = interval - (now - (x.lastReminded || x.start));
-                const nextInMin = Math.max(0, Math.ceil(nextInMs / 60000));
-                return `
-                <div class="log-card">
-                    <strong>${x.part}</strong>
-                    <span class="debug-timer">Next Notification: ${nextInMin}m</span>
-                    <button onclick="endLog(${x.id})" style="width:100%; margin-top:8px; background:black; color:white; border:none; padding:5px; border-radius:4px;">End</button>
-                </div>`;
-            }).join('');
+        function confirmLog() {
+            const entry = { id: Date.now(), part: activePart, val: parseInt(document.getElementById('int-slide').value), start: new Date().getTime(), end: null, notified: false };
+            data.unshift(entry);
+            save(); closePop(); render();
         }
 
         function endLog(id) {
             const item = data.find(x => x.id === id);
-            if(item) { item.end = Date.now(); save(); render(); }
+            if(item) { item.end = new Date().getTime(); save(); render(); }
+        }
+
+        function endAllActive() {
+            if(confirm("End all active logs?")) {
+                data.forEach(x => { if(!x.end) x.end = new Date().getTime(); });
+                save(); render();
+            }
+        }
+
+        function checkReminders() {
+            const now = new Date().getTime();
+            let sent = false;
+            data.forEach(x => {
+                // Now set to 1 hour (3600000 ms)
+                if(!x.end && (now - x.start) > 3600000 && !x.notified) {
+                    if (Notification.permission === "granted") {
+                        new Notification("Still Tracking?", { body: `You've been tracking ${x.part} for over an hour.`, vibrate: [200, 100, 200] });
+                        x.notified = true;
+                        sent = true;
+                    }
+                }
+            });
+            if(sent) save();
         }
 
         function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
 
-        // Run logic every 30 seconds
-        setInterval(checkLogic, 30000);
+        function toggleMode() {
+            mode = (mode === 'log') ? 'heat' : 'log';
+            document.getElementById('btn-mode').innerText = `Mode: ${mode.toUpperCase()}`;
+            render();
+        }
+
+        function toggleView() {
+            view = (view === 'front') ? 'back' : 'front';
+            document.getElementById('canvas-container').classList.toggle('showing-back');
+            render();
+        }
+
+        function getDuration(start, end) {
+            const finish = end || new Date().getTime();
+            const diff = Math.floor((finish - start) / 1000);
+            const hrs = Math.floor(diff / 3600);
+            const mins = Math.floor((diff % 3600) / 60);
+            return `${hrs}h ${mins}m`;
+        }
+
+        function render() {
+            const activeDiv = document.getElementById('list-active');
+            const historyDiv = document.getElementById('list-history');
+            const endAllBtn = document.getElementById('end-all');
+            
+            const actives = data.filter(x => !x.end);
+            const pasts = data.filter(x => x.end);
+
+            endAllBtn.style.display = actives.length > 1 ? 'block' : 'none';
+
+            activeDiv.innerHTML = actives.length ? "<h4 style='margin:10px 0'>Active</h4>" + actives.map(x => `
+                <div class="log-card active-card">
+                    <strong>${x.part}</strong> <br>
+                    <span class="timer-text">Duration: ${getDuration(x.start)}</span>
+                    <button onclick="endLog(${x.id})" style="background:#000; color:white; width:100%; margin-top:5px; padding:8px; border-radius:5px; border:none; font-weight:bold;">End Now</button>
+                </div>
+            `).join('') : "";
+
+            historyDiv.innerHTML = pasts.length ? "<h4 style='margin:10px 0'>History</h4>" + pasts.slice(0,5).map(x => `
+                <div class="log-card">
+                    <strong>${x.part}</strong> (${x.val}/10)<br>
+                    <small>Duration: ${getDuration(x.start, x.end)}</small>
+                </div>
+            `).join('') : "";
+
+            if(mode === 'heat') applyHeat(); else clearHeat();
+            checkReminders();
+        }
+
+        function applyHeat() {
+            clearHeat();
+            const scores = {};
+            data.forEach(x => {
+                const id = x.part.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-');
+                if(!scores[id]) scores[id] = {s:0, c:0};
+                scores[id].s += x.val; scores[id].c++;
+            });
+            for(let p in scores) {
+                const avg = Math.round(scores[p].s / scores[p].c);
+                const el = document.getElementById(p);
+                if(el) el.classList.add('heat-' + (avg > 10 ? 10 : avg));
+            }
+        }
+
+        function clearHeat() {
+            document.querySelectorAll('.body-part').forEach(el => {
+                el.classList.remove('heat-1','heat-2','heat-3','heat-4','heat-5','heat-6','heat-7','heat-8','heat-9','heat-10');
+            });
+        }
+
+        function resetData() { if(confirm("Reset all?")) { data = []; save(); render(); } }
+
+        function exportCSV() {
+            let csv = "Part,Level,Start,End,Duration\n";
+            data.forEach(x => csv += `"${x.part}",${x.val},"${new Date(x.start).toLocaleString()}","${x.end ? new Date(x.end).toLocaleString() : 'Active'}","${getDuration(x.start, x.end)}"\n`);
+            const blob = new Blob([csv], {type:'text/csv'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='logs.csv'; a.click();
+        }
+
+        setInterval(render, 60000);
         render();
     </script>
 </body>
