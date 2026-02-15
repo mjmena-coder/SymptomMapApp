@@ -3,150 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v1.0.0.3</title>
+    <title>Symptom Mapper v1.0.0.4</title>
     <style>
         :root { --bg: #f8fafc; --primary: #2563eb; --text: #0f172a; --stroke: #334155; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         
-        .header { text-align: center; margin-bottom: 10px; }
-        .version-tag { font-size: 0.7rem; font-weight: bold; color: #64748b; letter-spacing: 1px; }
-
-        /* Status & Config Row */
         .status-row { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 320px; margin-bottom: 10px; background: #fff; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 13px; }
         .status-badge { display: inline-block; padding: 3px 8px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .status-on { background: #dcfce7; color: #166534; }
         .status-off { background: #fee2e2; color: #991b1b; }
-        .input-mini { width: 50px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; font-weight: bold; }
+        .input-mini { width: 60px; padding: 4px; border: 2px solid var(--primary); border-radius: 4px; text-align: center; font-weight: bold; }
 
         .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; width: 100%; }
-        button { padding: 10px 14px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: bold; cursor: pointer; font-size: 13px; }
-        button.active { background: var(--primary); }
+        button { padding: 10px 14px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: bold; cursor: pointer; }
 
         .body-canvas { width: 100%; max-width: 320px; background: white; border-radius: 20px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; box-sizing: border-box;}
         svg { width: 100%; height: auto; display: block; }
-        .body-part { stroke: var(--stroke); stroke-width: 1.2; transition: fill 0.3s ease; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-        
-        @keyframes sync-pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-        .heat-mode-on .body-part { fill: #f1f5f9 !important; stroke: #cbd5e1; }
-        .heat-mode-on .heat-low { fill: #fef08a !important; animation: sync-pulse 2s infinite ease-in-out; }
-        .heat-mode-on .heat-med { fill: #f97316 !important; animation: sync-pulse 2s infinite ease-in-out; }
-        .heat-mode-on .heat-high { fill: #b91c1c !important; animation: sync-pulse 2s infinite ease-in-out; }
-
-        #view-back { display: none; }
-        .showing-back #view-front { display: none; }
-        .showing-back #view-back { display: block; }
+        .body-part { stroke: var(--stroke); stroke-width: 1.2; transition: fill 0.3s ease; cursor: pointer; }
 
         .log-card { position: relative; background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.03); width: 100%; max-width: 320px; box-sizing: border-box; }
         .active-card { border-left-color: #f59e0b; background: #fffbeb; }
-        .del-btn { position: absolute; top: 8px; right: 8px; background: #fee2e2; color: #b91c1c; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; }
+        .debug-timer { font-size: 0.75rem; color: #ef4444; font-weight: bold; margin-top: 4px; display: block; }
 
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; }
-        .modal-content { background: white; width: 85%; padding: 25px; border-radius: 20px; text-align: left; max-height: 90vh; overflow-y: auto; }
+        .modal-content { background: white; width: 85%; padding: 25px; border-radius: 20px; text-align: left; }
         
         .drawer { display: none; margin-top: 10px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
-        .descriptor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
-        textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; box-sizing: border-box; }
         
-        input[type="range"] { width: 100%; cursor: pointer; }
+        /* Slider Custom Styling */
+        input[type="range"].reverse-slider {
+            width: 100%;
+            cursor: pointer;
+            appearance: none;
+            height: 8px;
+            border-radius: 5px;
+            background: #e2e8f0; /* Default Gray */
+            outline: none;
+        }
+
+        input[type="range"].reverse-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
 
-    <div class="header">
+    <div class="header" style="text-align:center">
         <h2 style="margin:0">Symptom Mapper</h2>
-        <div class="version-tag">v1.0.0 | REV 3</div>
+        <div style="font-size: 0.7rem; font-weight: bold; color: #64748b;">v1.0.0 | REV 4 (DEBUG MODE)</div>
     </div>
 
     <div class="status-row">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <span>Notifications:</span>
-            <span id="notify-status" class="status-badge status-off" onclick="requestPermission()">Tap to Enable</span>
+            <span id="notify-status" class="status-badge status-off" onclick="requestPermission()">Enable</span>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span>Remind every (mins):</span>
-            <input type="number" id="remind-min" class="input-mini" value="60" onchange="updateRemindTime(this.value)">
+            <span>Notify Every:</span>
+            <div style="display:flex; align-items:center; gap:5px;">
+                <input type="number" id="remind-min" class="input-mini" value="60" oninput="updateRemindTime(this.value)">
+                <span>mins</span>
+            </div>
         </div>
     </div>
 
     <div class="controls">
         <button id="btn-mode" onclick="toggleMode()">Mode: Log</button>
         <button onclick="toggleView()" style="background:#7c3aed">Flip Body</button>
-        <button onclick="exportCSV()">Export</button>
         <button onclick="resetData()" style="background:#ef4444">Reset</button>
     </div>
 
     <div class="body-canvas" id="canvas-container">
-        <svg viewBox="0 0 200 400">
-            <g id="view-front">
-                <path id="head-left" class="body-part" fill="#f5f3ff" d="M100,20 Q70,20 70,50 L100,50 Z" onclick="doTap('Head Left')" />
-                <rect id="head-center" class="body-part" fill="#ede9fe" x="90" y="20" width="20" height="30" onclick="doTap('Head Center')" />
-                <path id="head-right" class="body-part" fill="#f5f3ff" d="M100,20 Q130,20 130,50 L100,50 Z" onclick="doTap('Head Right')" />
-                <rect id="neck-throat" class="body-part" fill="#f0f9ff" x="85" y="55" width="30" height="15" rx="2" onclick="doTap('Neck / Throat')" />
-                <rect id="chest-left" class="body-part" fill="#eff6ff" x="50" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Left')" />
-                <rect id="chest-center" class="body-part" fill="#dbeafe" x="90" y="75" width="20" height="70" onclick="doTap('Chest Center')" />
-                <rect id="chest-right" class="body-part" fill="#eff6ff" x="110" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Right')" />
-                <rect id="abdomen-left" class="body-part" fill="#f0fdfa" x="55" y="145" width="35" height="50" onclick="doTap('Abdomen Left')" />
-                <rect id="abdomen-center" class="body-part" fill="#ccfbf1" x="90" y="145" width="20" height="50" onclick="doTap('Abdomen Center')" />
-                <rect id="abdomen-right" class="body-part" fill="#f0fdfa" x="110" y="145" width="35" height="50" onclick="doTap('Abdomen Right')" />
-                <rect id="groin-left" class="body-part" fill="#fffbeb" x="65" y="195" width="25" height="35" onclick="doTap('Groin Left')" />
-                <rect id="groin-center" class="body-part" fill="#fef3c7" x="90" y="195" width="20" height="35" onclick="doTap('Groin Center')" />
-                <rect id="groin-right" class="body-part" fill="#fffbeb" x="110" y="195" width="25" height="35" onclick="doTap('Groin Right')" />
-                <path id="left-arm" class="body-part" fill="#f8fafc" d="M50,80 Q20,80 20,110 L35,210 Q45,220 55,210 Z" onclick="doTap('Left Arm')" />
-                <path id="right-arm" class="body-part" fill="#f8fafc" d="M150,80 Q180,80 180,110 L165,210 Q155,220 145,210 Z" onclick="doTap('Right Arm')" />
-                <path id="left-leg" class="body-part" fill="#f8fafc" d="M65,230 L90,230 L90,360 Q75,375 60,360 Z" onclick="doTap('Left Leg')" />
-                <path id="right-leg" class="body-part" fill="#f8fafc" d="M110,230 L135,230 L135,360 Q120,375 105,360 Z" onclick="doTap('Right Leg')" />
-            </g>
-            <g id="view-back">
-                <rect id="spine" class="body-part" fill="#f1f5f9" x="88" y="70" width="24" height="160" onclick="doTap('Spine')" />
-                <rect id="back-left-top" class="body-part" fill="#f8fafc" x="45" y="70" width="43" height="50" onclick="doTap('Back Left Top')" />
-                <rect id="back-right-top" class="body-part" fill="#f8fafc" x="112" y="70" width="43" height="50" onclick="doTap('Back Right Top')" />
-                <rect id="back-left-mid" class="body-part" fill="#f8fafc" x="48" y="120" width="40" height="50" onclick="doTap('Back Left Mid')" />
-                <rect id="back-right-mid" class="body-part" fill="#f8fafc" x="112" y="120" width="40" height="50" onclick="doTap('Back Right Mid')" />
-                <rect id="back-left-low" class="body-part" fill="#f8fafc" x="50" y="170" width="38" height="60" onclick="doTap('Back Left Low')" />
-                <rect id="back-right-low" class="body-part" fill="#f8fafc" x="112" y="170" width="38" height="60" onclick="doTap('Back Right Low')" />
-                <rect id="left-glute" class="body-part" fill="#f1f5f9" x="50" y="230" width="45" height="55" rx="15" onclick="doTap('Left Glute')" />
-                <rect id="right-glute" class="body-part" fill="#f1f5f9" x="105" y="230" width="45" height="55" rx="15" onclick="doTap('Right Glute')" />
-            </g>
-        </svg>
+        <svg viewBox="0 0 200 400"><g id="view-front">
+            <path id="head-left" class="body-part" fill="#f5f3ff" d="M100,20 Q70,20 70,50 L100,50 Z" onclick="doTap('Head Left')" />
+            <rect id="head-center" class="body-part" fill="#ede9fe" x="90" y="20" width="20" height="30" onclick="doTap('Head Center')" />
+            <path id="head-right" class="body-part" fill="#f5f3ff" d="M100,20 Q130,20 130,50 L100,50 Z" onclick="doTap('Head Right')" />
+            <rect id="neck-throat" class="body-part" fill="#f0f9ff" x="85" y="55" width="30" height="15" rx="2" onclick="doTap('Neck / Throat')" />
+            <rect id="chest-left" class="body-part" fill="#eff6ff" x="50" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Left')" />
+            <rect id="chest-center" class="body-part" fill="#dbeafe" x="90" y="75" width="20" height="70" onclick="doTap('Chest Center')" />
+            <rect id="chest-right" class="body-part" fill="#eff6ff" x="110" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Right')" />
+            <rect id="abdomen-left" class="body-part" fill="#f0fdfa" x="55" y="145" width="35" height="50" onclick="doTap('Abdomen Left')" />
+            <rect id="abdomen-center" class="body-part" fill="#ccfbf1" x="90" y="145" width="20" height="50" onclick="doTap('Abdomen Center')" />
+            <rect id="abdomen-right" class="body-part" fill="#f0fdfa" x="110" y="145" width="35" height="50" onclick="doTap('Abdomen Right')" />
+            <rect id="groin-left" class="body-part" fill="#fffbeb" x="65" y="195" width="25" height="35" onclick="doTap('Groin Left')" />
+            <rect id="groin-center" class="body-part" fill="#fef3c7" x="90" y="195" width="20" height="35" onclick="doTap('Groin Center')" />
+            <rect id="groin-right" class="body-part" fill="#fffbeb" x="110" y="195" width="25" height="35" onclick="doTap('Groin Right')" />
+            <path id="left-arm" class="body-part" fill="#f8fafc" d="M50,80 Q20,80 20,110 L35,210 Q45,220 55,210 Z" onclick="doTap('Left Arm')" />
+            <path id="right-arm" class="body-part" fill="#f8fafc" d="M150,80 Q180,80 180,110 L165,210 Q155,220 145,210 Z" onclick="doTap('Right Arm')" />
+            <path id="left-leg" class="body-part" fill="#f8fafc" d="M65,230 L90,230 L90,360 Q75,375 60,360 Z" onclick="doTap('Left Leg')" />
+            <path id="right-leg" class="body-part" fill="#f8fafc" d="M110,230 L135,230 L135,360 Q120,375 105,360 Z" onclick="doTap('Right Leg')" />
+        </g><g id="view-back">
+            <rect id="spine" class="body-part" fill="#f1f5f9" x="88" y="70" width="24" height="160" onclick="doTap('Spine')" />
+            <rect id="back-left-top" class="body-part" fill="#f8fafc" x="45" y="70" width="43" height="50" onclick="doTap('Back Left Top')" />
+            <rect id="back-right-top" class="body-part" fill="#f8fafc" x="112" y="70" width="43" height="50" onclick="doTap('Back Right Top')" />
+            <rect id="back-left-mid" class="body-part" fill="#f8fafc" x="48" y="120" width="40" height="50" onclick="doTap('Back Left Mid')" />
+            <rect id="back-right-mid" class="body-part" fill="#f8fafc" x="112" y="120" width="40" height="50" onclick="doTap('Back Right Mid')" />
+            <rect id="back-left-low" class="body-part" fill="#f8fafc" x="50" y="170" width="38" height="60" onclick="doTap('Back Left Low')" />
+            <rect id="back-right-low" class="body-part" fill="#f8fafc" x="112" y="170" width="38" height="60" onclick="doTap('Back Right Low')" />
+            <rect id="left-glute" class="body-part" fill="#f1f5f9" x="50" y="230" width="45" height="55" rx="15" onclick="doTap('Left Glute')" />
+            <rect id="right-glute" class="body-part" fill="#f1f5f9" x="105" y="230" width="45" height="55" rx="15" onclick="doTap('Right Glute')" />
+        </g></svg>
     </div>
 
     <div id="list-active" style="width:100%; max-width:320px;"></div>
-    <div id="list-history" style="width:100%; max-width:320px; margin-top:10px;"></div>
 
     <div id="pop" class="modal">
         <div class="modal-content">
-            <h3 id="pop-title" style="margin:0 0 15px 0">Log</h3>
-            <p style="margin:0">Intensity: <span id="int-val" style="font-weight:bold; color:var(--primary)">5</span>/10</p>
+            <h3 id="pop-title" style="margin:0 0 10px 0">Log</h3>
+            <p>Intensity: <span id="int-val" style="font-weight:bold">5</span>/10</p>
             <input type="range" id="int-slide" min="1" max="10" value="5" oninput="document.getElementById('int-val').innerText=this.value">
             
             <div style="margin-top:15px;">
-                <label><input type="checkbox" id="toggle-type"> Pain Description</label>
-                <div id="drawer-type" class="drawer descriptor-grid">
-                    <label><input type="checkbox" class="p-type" value="Aching"> Aching</label>
-                    <label><input type="checkbox" class="p-type" value="Sharp"> Sharp</label>
-                    <label><input type="checkbox" class="p-type" value="Burning"> Burning</label>
-                    <label><input type="checkbox" class="p-type" value="Dull"> Dull</label>
-                    <label><input type="checkbox" class="p-type" value="Stabbing"> Stabbing</label>
-                    <label><input type="checkbox" class="p-type" value="Tingling"> Tingling</label>
-                    <label><input type="checkbox" class="p-type" value="Cramping"> Cramping</label>
-                </div>
-            </div>
-
-            <div style="margin-top:10px;">
                 <label><input type="checkbox" id="toggle-time"> Backdate Start Time</label>
                 <div id="drawer-time" class="drawer">
-                    <p style="margin:0 0 5px 0; text-align:center;">Start Time: <span id="time-preview" style="color:var(--primary); font-weight:bold;">Now</span></p>
-                    <input type="range" id="time-slider" min="0" max="24" value="0" step="1" oninput="updateTimeText(this.value)">
+                    <p style="text-align:center; margin-bottom:10px;">Start: <span id="time-preview" style="color:var(--primary); font-weight:bold;">Now</span></p>
+                    <input type="range" id="time-slider" class="reverse-slider" min="0" max="24" value="0" step="1" oninput="handleSlider(this.value)">
                     <div style="display:flex; justify-content: space-between; font-size: 10px; color: #94a3b8; margin-top: 5px;">
-                        <span>Now</span><span>12h Ago</span>
+                        <span>12h Ago</span><span>Now</span>
                     </div>
-                </div>
-            </div>
-
-            <div style="margin-top:10px;">
-                <label><input type="checkbox" id="toggle-notes"> Add Notes</label>
-                <div id="drawer-notes" class="drawer">
-                    <textarea id="pop-notes" rows="2" placeholder="Notes..."></textarea>
                 </div>
             </div>
 
@@ -156,39 +136,28 @@
     </div>
 
     <script>
-        const KEY = 'symp_v100_r3';
-        let mode = 'log'; let view = 'front'; let activePart = '';
+        const KEY = 'symp_v100_r4';
         let data = JSON.parse(localStorage.getItem(KEY)) || [];
         let remindMinutes = parseInt(localStorage.getItem('remind_mins')) || 60;
-
         document.getElementById('remind-min').value = remindMinutes;
 
         function updateRemindTime(val) {
-            remindMinutes = Math.max(1, parseInt(val));
+            remindMinutes = Math.max(1, parseInt(val) || 1);
             localStorage.setItem('remind_mins', remindMinutes);
+            render(); // Refresh timers immediately
         }
 
-        function updateNotifyStatus() {
-            const el = document.getElementById('notify-status');
-            if (Notification.permission === "granted") {
-                el.innerText = "Enabled"; el.className = "status-badge status-on";
-            } else {
-                el.innerText = "Tap to Enable"; el.className = "status-badge status-off";
-            }
-        }
-
-        function requestPermission() {
-            Notification.requestPermission().then(updateNotifyStatus);
-        }
-
-        ['type', 'time', 'notes'].forEach(id => {
-            document.getElementById('toggle-'+id).onchange = (e) => {
-                document.getElementById('drawer-'+id).style.display = e.target.checked ? 'block' : 'none';
-            }
-        });
-
-        // Math-based Manual Flip for Slider: 0 is Now, 24 is 12h ago.
-        function updateTimeText(val) {
+        // Logic to make slider start on right (0) and go left (24)
+        function handleSlider(val) {
+            const slider = document.getElementById('time-slider');
+            // val is 0-24. We want 0 to be Right.
+            // Visually, a standard range is Left (0) to Right (Max).
+            // We'll treat the VALUE as "30m intervals back".
+            // To make it Red as it goes Left, we use val.
+            const percentage = (val / 24) * 100;
+            // Background gradient: Grey on the right, Red on the left
+            slider.style.background = `linear-gradient(to right, #ef4444 ${percentage}%, #e2e8f0 ${percentage}%)`;
+            
             if(val == 0) { document.getElementById('time-preview').innerText = "Now"; return; }
             const offsetMs = val * 30 * 60000;
             const target = new Date(Date.now() - offsetMs);
@@ -196,31 +165,23 @@
         }
 
         function doTap(name) {
-            if (mode === 'heat') return;
             activePart = name;
             document.getElementById('pop-title').innerText = name;
-            document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
-            document.querySelectorAll('.drawer').forEach(d => d.style.display = 'none');
-            document.getElementById('pop-notes').value = '';
-            document.getElementById('time-slider').value = 0;
+            document.getElementById('toggle-time').checked = false;
+            document.getElementById('drawer-time').style.display = 'none';
+            const s = document.getElementById('time-slider');
+            s.value = 0; s.style.background = '#e2e8f0';
             updateTimeText(0);
             document.getElementById('pop').style.display = 'flex';
         }
 
+        function updateTimeText(val) { document.getElementById('time-preview').innerText = "Now"; }
+
         function confirmLog() {
-            const types = Array.from(document.querySelectorAll('.p-type:checked')).map(c => c.value);
-            const notes = document.getElementById('toggle-notes').checked ? document.getElementById('pop-notes').value : "";
             const offset = document.getElementById('toggle-time').checked ? (document.getElementById('time-slider').value * 30 * 60000) : 0;
-            
             data.unshift({ 
-                id: Date.now(), 
-                part: activePart, 
-                val: parseInt(document.getElementById('int-slide').value), 
-                start: Date.now() - offset, 
-                end: null,
-                notes: notes,
-                types: types,
-                lastReminded: Date.now() - offset // Initialize so timer starts from symptom beginning
+                id: Date.now(), part: activePart, val: document.getElementById('int-slide').value, 
+                start: Date.now() - offset, end: null, lastReminded: Date.now() - offset 
             });
             save(); closePop(); render();
         }
@@ -229,7 +190,6 @@
             if (Notification.permission !== "granted") return;
             const now = Date.now();
             let count = 0;
-
             data.forEach(s => {
                 if (!s.end) {
                     const diff = now - (s.lastReminded || s.start);
@@ -239,81 +199,42 @@
                     }
                 }
             });
-
-            if (count > 0) {
-                save();
-                new Notification("Symptom Check-In", { 
-                    body: `Reminder: You have ${count} active symptoms logged. Open to update or end them.`,
-                    tag: 'symptom-remind'
-                });
-            }
+            if (count > 0) new Notification("Symptom Mapper", { body: `Check-in for ${count} active symptoms.` });
+            save(); render();
         }
 
         function render() {
             const activeDiv = document.getElementById('list-active');
-            const historyDiv = document.getElementById('list-history');
             const actives = data.filter(x => !x.end);
-            const pasts = data.filter(x => x.end);
+            const now = Date.now();
 
-            activeDiv.innerHTML = actives.length ? "<h4>Active</h4>" + actives.map(x => `
+            activeDiv.innerHTML = actives.length ? "<h4>Active Symptoms</h4>" + actives.map(x => {
+                const diff = now - (x.lastReminded || x.start);
+                const remainingMs = (remindMinutes * 60000) - diff;
+                const remainingMin = Math.max(0, Math.ceil(remainingMs / 60000));
+                
+                return `
                 <div class="log-card active-card">
-                    <strong>${x.part}</strong> (${x.val}/10)<br>
-                    <small>${x.types.join(' • ')}</small>
-                    ${x.notes ? `<p style="font-size:0.8rem; margin:5px 0;">${x.notes}</p>` : ''}
-                    <button onclick="endLog(${x.id})" style="background:#000; color:white; width:100%; margin-top:8px; padding:8px; border-radius:5px; border:none; font-weight:bold;">End Symptom</button>
-                    <button class="del-btn" onclick="deleteItem(${x.id})">Del</button>
-                </div>
-            `).join('') : "";
-
-            historyDiv.innerHTML = pasts.length ? "<h4>History</h4>" + pasts.slice(0,5).map(x => `
-                <div class="log-card">
-                    <strong>${x.part}</strong> (${x.val}/10)<br>
-                    <small>Duration: ${getDuration(x.start, x.end)}</small>
-                    <button class="del-btn" onclick="deleteItem(${x.id})">Del</button>
-                </div>
-            `).join('') : "";
-            applyHeat();
+                    <strong>${x.part}</strong> (${x.val}/10)
+                    <span class="debug-timer">Next notify in: ${remainingMin}m</span>
+                    <button onclick="endLog(${x.id})" style="background:#000; color:white; width:100%; margin-top:8px; padding:8px; border-radius:5px; border:none; font-weight:bold;">End</button>
+                </div>`;
+            }).join('') : "";
         }
 
-        function getDuration(start, end) {
-            const totalMs = (end || Date.now()) - start;
-            const totalMinutes = Math.max(1, Math.ceil(totalMs / 60000));
-            const h = Math.floor(totalMinutes / 60);
-            const m = totalMinutes % 60;
-            return h > 0 ? `${h}h ${m}m` : `${m}m`;
-        }
+        document.getElementById('toggle-time').onchange = (e) => {
+            document.getElementById('drawer-time').style.display = e.target.checked ? 'block' : 'none';
+        };
 
         function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
         function closePop() { document.getElementById('pop').style.display = 'none'; }
         function endLog(id) { const i = data.find(x => x.id === id); if(i){ i.end = Date.now(); save(); render(); }}
-        function deleteItem(id) { if(confirm("Delete?")){ data = data.filter(x => x.id !== id); save(); render(); }}
-        function toggleMode() { mode = (mode === 'log' ? 'heat' : 'log'); document.getElementById('btn-mode').innerText = "Mode: " + mode.toUpperCase(); document.getElementById('canvas-container').classList.toggle('heat-mode-on'); render(); }
-        function toggleView() { view = (view === 'front' ? 'back' : 'front'); document.getElementById('canvas-container').classList.toggle('showing-back'); render(); }
-        function exportCSV() {
-            let csv = "Part,Intensity,Types,Notes,Start,End,Duration\n";
-            data.forEach(x => csv += `"${x.part}",${x.val},"${x.types.join('|')}","${x.notes}","${new Date(x.start).toLocaleString()}","${x.end ? new Date(x.end).toLocaleString() : 'Active'}","${getDuration(x.start, x.end)}"\n`);
-            const blob = new Blob([csv], {type:'text/csv'});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='symptoms.csv'; a.click();
-        }
-
-        function applyHeat() {
-            document.querySelectorAll('.body-part').forEach(el => el.classList.remove('heat-low', 'heat-med', 'heat-high'));
-            if(mode !== 'heat') return;
-            const scores = {};
-            data.forEach(x => {
-                const id = x.part.toLowerCase().replace(/ \/ /g, '-').replace(/ /g, '-');
-                if(!scores[id]) scores[id] = [];
-                scores[id].push(x.val);
-            });
-            for(let id in scores) {
-                const avg = scores[id].reduce((a,b) => a+b, 0) / scores[id].length;
-                const el = document.getElementById(id);
-                if(el) {
-                    if(avg >= 7) el.classList.add('heat-high');
-                    else if(avg >= 4) el.classList.add('heat-med');
-                    else el.classList.add('heat-low');
-                }
-            }
+        function resetData() { if(confirm("Clear?")) { data = []; save(); render(); } }
+        function requestPermission() { Notification.requestPermission().then(updateNotifyStatus); }
+        function updateNotifyStatus() {
+            const el = document.getElementById('notify-status');
+            el.innerText = (Notification.permission === "granted") ? "Enabled" : "Tap to Enable";
+            el.className = "status-badge " + (Notification.permission === "granted" ? "status-on" : "status-off");
         }
 
         setInterval(() => { render(); checkReminders(); }, 60000);
