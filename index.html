@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v1.1.0-dev</title>
+    <title>Symptom Mapper v1.1.1-dev</title>
     <style>
         :root { --bg: #f8fafc; --primary: #2563eb; --text: #0f172a; --stroke: #334155; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
@@ -18,10 +18,22 @@
         button { padding: 10px 14px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; }
         button.active { background: var(--primary); transform: scale(1.05); }
 
+        /* BODY MAP LOGIC - RESTORED */
         .body-canvas { width: 100%; max-width: 320px; background: white; border-radius: 20px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; box-sizing: border-box;}
         svg { width: 100%; height: auto; display: block; }
-        .body-part { stroke: var(--stroke); stroke-width: 1.2; transition: fill 0.3s ease; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .body-part { stroke: var(--stroke); stroke-width: 1.2; transition: fill 0.3s ease; cursor: pointer; -webkit-tap-highlight-color: transparent; fill: #f8fafc; }
         
+        #view-back { display: none; }
+        .showing-back #view-front { display: none; }
+        .showing-back #view-back { display: block; }
+
+        /* HEAT MAP LOGIC - RESTORED */
+        @keyframes sync-pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        .heat-mode-on .body-part { fill: #f1f5f9 !important; stroke: #cbd5e1; }
+        .heat-mode-on .heat-low { fill: #fef08a !important; animation: sync-pulse 2s infinite ease-in-out; }
+        .heat-mode-on .heat-med { fill: #f97316 !important; animation: sync-pulse 2s infinite ease-in-out; }
+        .heat-mode-on .heat-high { fill: #b91c1c !important; animation: sync-pulse 2s infinite ease-in-out; }
+
         .log-card { position: relative; background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.03); width: 100%; max-width: 320px; box-sizing: border-box; }
         .active-card { border-left-color: #f59e0b; background: #fffbeb; }
         .checkin-timer { display: block; font-size: 0.75rem; color: #ef4444; font-weight: bold; margin-top: 4px; }
@@ -46,7 +58,7 @@
 
     <div class="header">
         <h2 style="margin:0">Symptom Mapper</h2>
-        <div class="version-tag">v1.1.0-dev | BRANCH TEST</div>
+        <div class="version-tag">v1.1.1-dev | UI FIXED</div>
     </div>
 
     <div class="config-row">
@@ -64,34 +76,34 @@
     <div class="body-canvas" id="canvas-container">
         <svg viewBox="0 0 200 400">
             <g id="view-front">
-                <path id="head-left" class="body-part" fill="#f5f3ff" d="M100,20 Q70,20 70,50 L100,50 Z" onclick="doTap('Head Left')" />
-                <rect id="head-center" class="body-part" fill="#ede9fe" x="90" y="20" width="20" height="30" onclick="doTap('Head Center')" />
-                <path id="head-right" class="body-part" fill="#f5f3ff" d="M100,20 Q130,20 130,50 L100,50 Z" onclick="doTap('Head Right')" />
-                <rect id="neck-throat" class="body-part" fill="#f0f9ff" x="85" y="55" width="30" height="15" rx="2" onclick="doTap('Neck / Throat')" />
-                <rect id="chest-left" class="body-part" fill="#eff6ff" x="50" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Left')" />
-                <rect id="chest-center" class="body-part" fill="#dbeafe" x="90" y="75" width="20" height="70" onclick="doTap('Chest Center')" />
-                <rect id="chest-right" class="body-part" fill="#eff6ff" x="110" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Right')" />
-                <rect id="abdomen-left" class="body-part" fill="#f0fdfa" x="55" y="145" width="35" height="50" onclick="doTap('Abdomen Left')" />
-                <rect id="abdomen-center" class="body-part" fill="#ccfbf1" x="90" y="145" width="20" height="50" onclick="doTap('Abdomen Center')" />
-                <rect id="abdomen-right" class="body-part" fill="#f0fdfa" x="110" y="145" width="35" height="50" onclick="doTap('Abdomen Right')" />
-                <rect id="groin-left" class="body-part" fill="#fffbeb" x="65" y="195" width="25" height="35" onclick="doTap('Groin Left')" />
-                <rect id="groin-center" class="body-part" fill="#fef3c7" x="90" y="195" width="20" height="35" onclick="doTap('Groin Center')" />
-                <rect id="groin-right" class="body-part" fill="#fffbeb" x="110" y="195" width="25" height="35" onclick="doTap('Groin Right')" />
-                <path id="left-arm" class="body-part" fill="#f8fafc" d="M50,80 Q20,80 20,110 L35,210 Q45,220 55,210 Z" onclick="doTap('Left Arm')" />
-                <path id="right-arm" class="body-part" fill="#f8fafc" d="M150,80 Q180,80 180,110 L165,210 Q155,220 145,210 Z" onclick="doTap('Right Arm')" />
-                <path id="left-leg" class="body-part" fill="#f8fafc" d="M65,230 L90,230 L90,360 Q75,375 60,360 Z" onclick="doTap('Left Leg')" />
-                <path id="right-leg" class="body-part" fill="#f8fafc" d="M110,230 L135,230 L135,360 Q120,375 105,360 Z" onclick="doTap('Right Leg')" />
+                <path id="head-left" class="body-part" d="M100,20 Q70,20 70,50 L100,50 Z" onclick="doTap('Head Left')" />
+                <rect id="head-center" class="body-part" x="90" y="20" width="20" height="30" onclick="doTap('Head Center')" />
+                <path id="head-right" class="body-part" d="M100,20 Q130,20 130,50 L100,50 Z" onclick="doTap('Head Right')" />
+                <rect id="neck-throat" class="body-part" x="85" y="55" width="30" height="15" rx="2" onclick="doTap('Neck / Throat')" />
+                <rect id="chest-left" class="body-part" x="50" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Left')" />
+                <rect id="chest-center" class="body-part" x="90" y="75" width="20" height="70" onclick="doTap('Chest Center')" />
+                <rect id="chest-right" class="body-part" x="110" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Right')" />
+                <rect id="abdomen-left" class="body-part" x="55" y="145" width="35" height="50" onclick="doTap('Abdomen Left')" />
+                <rect id="abdomen-center" class="body-part" x="90" y="145" width="20" height="50" onclick="doTap('Abdomen Center')" />
+                <rect id="abdomen-right" class="body-part" x="110" y="145" width="35" height="50" onclick="doTap('Abdomen Right')" />
+                <rect id="groin-left" class="body-part" x="65" y="195" width="25" height="35" onclick="doTap('Groin Left')" />
+                <rect id="groin-center" class="body-part" x="90" y="195" width="20" height="35" onclick="doTap('Groin Center')" />
+                <rect id="groin-right" class="body-part" x="110" y="195" width="25" height="35" onclick="doTap('Groin Right')" />
+                <path id="left-arm" class="body-part" d="M50,80 Q20,80 20,110 L35,210 Q45,220 55,210 Z" onclick="doTap('Left Arm')" />
+                <path id="right-arm" class="body-part" d="M150,80 Q180,80 180,110 L165,210 Q155,220 145,210 Z" onclick="doTap('Right Arm')" />
+                <path id="left-leg" class="body-part" d="M65,230 L90,230 L90,360 Q75,375 60,360 Z" onclick="doTap('Left Leg')" />
+                <path id="right-leg" class="body-part" d="M110,230 L135,230 L135,360 Q120,375 105,360 Z" onclick="doTap('Right Leg')" />
             </g>
             <g id="view-back">
-                <rect id="spine" class="body-part" fill="#f1f5f9" x="88" y="70" width="24" height="160" onclick="doTap('Spine')" />
-                <rect id="back-left-top" class="body-part" fill="#f8fafc" x="45" y="70" width="43" height="50" onclick="doTap('Back Left Top')" />
-                <rect id="back-right-top" class="body-part" fill="#f8fafc" x="112" y="70" width="43" height="50" onclick="doTap('Back Right Top')" />
-                <rect id="back-left-mid" class="body-part" fill="#f8fafc" x="48" y="120" width="40" height="50" onclick="doTap('Back Left Mid')" />
-                <rect id="back-right-mid" class="body-part" fill="#f8fafc" x="112" y="120" width="40" height="50" onclick="doTap('Back Right Mid')" />
-                <rect id="back-left-low" class="body-part" fill="#f8fafc" x="50" y="170" width="38" height="60" onclick="doTap('Back Left Low')" />
-                <rect id="back-right-low" class="body-part" fill="#f8fafc" x="112" y="170" width="38" height="60" onclick="doTap('Back Right Low')" />
-                <rect id="left-glute" class="body-part" fill="#f1f5f9" x="50" y="230" width="45" height="55" rx="15" onclick="doTap('Left Glute')" />
-                <rect id="right-glute" class="body-part" fill="#f1f5f9" x="105" y="230" width="45" height="55" rx="15" onclick="doTap('Right Glute')" />
+                <rect id="spine" class="body-part" x="88" y="70" width="24" height="160" onclick="doTap('Spine')" />
+                <rect id="back-left-top" class="body-part" x="45" y="70" width="43" height="50" onclick="doTap('Back Left Top')" />
+                <rect id="back-right-top" class="body-part" x="112" y="70" width="43" height="50" onclick="doTap('Back Right Top')" />
+                <rect id="back-left-mid" class="body-part" x="48" y="120" width="40" height="50" onclick="doTap('Back Left Mid')" />
+                <rect id="back-right-mid" class="body-part" x="112" y="120" width="40" height="50" onclick="doTap('Back Right Mid')" />
+                <rect id="back-left-low" class="body-part" x="50" y="170" width="38" height="60" onclick="doTap('Back Left Low')" />
+                <rect id="back-right-low" class="body-part" x="112" y="170" width="38" height="60" onclick="doTap('Back Right Low')" />
+                <rect id="left-glute" class="body-part" x="50" y="230" width="45" height="55" rx="15" onclick="doTap('Left Glute')" />
+                <rect id="right-glute" class="body-part" x="105" y="230" width="45" height="55" rx="15" onclick="doTap('Right Glute')" />
             </g>
         </svg>
     </div>
@@ -122,7 +134,7 @@
             </div>
 
             <div style="margin-top:10px;">
-                <label><input type="checkbox" id="toggle-time"> Change Time</label>
+                <label><input type="checkbox" id="toggle-time"> <span id="label-time">Set Start Time</span></label>
                 <div id="drawer-time" class="drawer">
                     <div id="slider-wrap">
                         <p style="margin:0">Started: <span id="time-preview" style="font-weight:bold; color:var(--primary)">Now</span></p>
@@ -172,7 +184,6 @@
             box.scrollTop = box.scrollHeight;
         }
 
-        // Fill Hours Dropdowns
         const hs = ['start-h', 'end-h'];
         hs.forEach(id => {
             const el = document.getElementById(id);
@@ -192,10 +203,7 @@
         }
 
         function updateActiveSlider(val) {
-            if(val == 0) {
-                document.getElementById('time-preview').innerText = "Now";
-                return;
-            }
+            if(val == 0) { document.getElementById('time-preview').innerText = "Now"; return; }
             const target = getSnappedTime(val);
             document.getElementById('time-preview').innerText = target.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         }
@@ -225,6 +233,7 @@
             editingId = null; 
             activePart = name;
             document.getElementById('pop-title').innerText = name;
+            document.getElementById('label-time').innerText = "Set Start Time";
             document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
             document.querySelectorAll('.drawer').forEach(d => d.style.display = 'none');
             document.getElementById('slider-wrap').style.display = 'block';
@@ -249,11 +258,13 @@
             document.getElementById('drawer-time').style.display = 'block';
 
             if (item.end) {
+                document.getElementById('label-time').innerText = "Change Time (Start/End)";
                 document.getElementById('slider-wrap').style.display = 'none';
                 document.getElementById('boxes-wrap').style.display = 'block';
                 setUITime(new Date(item.start), 'start');
                 setUITime(new Date(item.end), 'end');
             } else {
+                document.getElementById('label-time').innerText = "Set Start Time";
                 document.getElementById('slider-wrap').style.display = 'block';
                 document.getElementById('boxes-wrap').style.display = 'none';
                 document.getElementById('time-slider').value = 0;
@@ -265,15 +276,15 @@
         function confirmLog() {
             const types = Array.from(document.querySelectorAll('.p-type:checked')).map(c => c.value);
             const notes = document.getElementById('toggle-notes').checked ? document.getElementById('pop-notes').value : "";
-            
             let startTs, endTs = null;
+            const original = editingId ? data.find(x => x.id === editingId) : null;
 
-            if (editingId && data.find(x => x.id === editingId).end) {
+            if (original && original.end) {
                 startTs = getTimestampFromUI('start');
                 endTs = getTimestampFromUI('end');
             } else {
                 const offset = document.getElementById('toggle-time').checked ? document.getElementById('time-slider').value : 0;
-                startTs = offset == 0 ? Date.now() : getSnappedTime(offset).getTime();
+                startTs = offset == 0 ? (original ? original.start : Date.now()) : getSnappedTime(offset).getTime();
             }
 
             if (editingId) {
@@ -319,9 +330,22 @@
         function closePop() { document.getElementById('pop').style.display = 'none'; editingId = null; }
         function endLog(id) { const i = data.find(x => x.id === id); if(i) { i.end = Date.now(); save(); render(); }}
         function deleteItem(id) { if(confirm("Delete?")) { data = data.filter(x => x.id !== id); save(); render(); }}
-        function toggleMode() { mode = (mode === 'log') ? 'heat' : 'log'; render(); }
-        function toggleView() { view = (view === 'front') ? 'back' : 'front'; document.getElementById('canvas-container').classList.toggle('showing-back'); render(); }
+        
+        function toggleMode() { 
+            mode = (mode === 'log') ? 'heat' : 'log'; 
+            document.body.classList.toggle('heat-mode-on', mode === 'heat');
+            document.getElementById('btn-mode').innerText = `Mode: ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+            render(); 
+        }
+
+        function toggleView() { 
+            view = (view === 'front') ? 'back' : 'front'; 
+            document.getElementById('canvas-container').classList.toggle('showing-back'); 
+            render(); 
+        }
+
         function getDuration(s, e) { const m = Math.max(1, Math.ceil(((e || Date.now()) - s) / 60000)); return m > 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`; }
+        
         function applyHeat() { 
             document.querySelectorAll('.body-part').forEach(el => el.classList.remove('heat-low', 'heat-med', 'heat-high'));
             if(mode !== 'heat') return;
