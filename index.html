@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v1.0.0.2</title>
+    <title>Symptom Mapper v1.0.0.3</title>
     <style>
         :root { --bg: #f8fafc; --primary: #2563eb; --text: #0f172a; --stroke: #334155; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
@@ -11,11 +11,12 @@
         .header { text-align: center; margin-bottom: 10px; }
         .version-tag { font-size: 0.7rem; font-weight: bold; color: #64748b; letter-spacing: 1px; }
 
-        /* Updated Diagnostic Row */
-        .status-row { display: flex; flex-direction: column; gap: 5px; width: 100%; max-width: 320px; margin-bottom: 10px; background: #fff; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 12px; }
-        .status-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        /* Status & Config Row */
+        .status-row { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 320px; margin-bottom: 10px; background: #fff; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 13px; }
+        .status-badge { display: inline-block; padding: 3px 8px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         .status-on { background: #dcfce7; color: #166534; }
-        .status-off { background: #fee2e2; color: #991b1b; cursor: pointer; }
+        .status-off { background: #fee2e2; color: #991b1b; }
+        .input-mini { width: 50px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; font-weight: bold; }
 
         .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; width: 100%; }
         button { padding: 10px 14px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: bold; cursor: pointer; font-size: 13px; }
@@ -45,28 +46,25 @@
         .drawer { display: none; margin-top: 10px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
         .descriptor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
         textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; box-sizing: border-box; }
-        input[type="range"] { width: 100%; direction: rtl; } /* Reversed Slider Visuals */
+        
+        input[type="range"] { width: 100%; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h2 style="margin:0">Symptom Mapper</h2>
-        <div class="version-tag">v1.0.0 | REV 2</div>
+        <div class="version-tag">v1.0.0 | REV 3</div>
     </div>
 
     <div class="status-row">
-        <div>
-            Notifications: <span id="notify-status" class="status-badge status-off" onclick="requestPermission()">Checking...</span>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Notifications:</span>
+            <span id="notify-status" class="status-badge status-off" onclick="requestPermission()">Tap to Enable</span>
         </div>
-        <div>
-            Remind me every: 
-            <select id="reminder-interval" onchange="updateInterval(this.value)">
-                <option value="1800000">30 Minutes</option>
-                <option value="3600000" selected>1 Hour</option>
-                <option value="7200000">2 Hours</option>
-                <option value="14400000">4 Hours</option>
-            </select>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Remind every (mins):</span>
+            <input type="number" id="remind-min" class="input-mini" value="60" onchange="updateRemindTime(this.value)">
         </div>
     </div>
 
@@ -117,7 +115,7 @@
 
     <div id="pop" class="modal">
         <div class="modal-content">
-            <h3 id="pop-title" style="margin:0 0 15px 0">Symptom Log</h3>
+            <h3 id="pop-title" style="margin:0 0 15px 0">Log</h3>
             <p style="margin:0">Intensity: <span id="int-val" style="font-weight:bold; color:var(--primary)">5</span>/10</p>
             <input type="range" id="int-slide" min="1" max="10" value="5" oninput="document.getElementById('int-val').innerText=this.value">
             
@@ -136,11 +134,11 @@
 
             <div style="margin-top:10px;">
                 <label><input type="checkbox" id="toggle-time"> Backdate Start Time</label>
-                <div id="drawer-time" class="drawer" style="text-align: right;">
-                    <p style="margin:0 0 5px 0">Start Time: <span id="time-preview" style="color:var(--primary); font-weight:bold;">Now</span></p>
+                <div id="drawer-time" class="drawer">
+                    <p style="margin:0 0 5px 0; text-align:center;">Start Time: <span id="time-preview" style="color:var(--primary); font-weight:bold;">Now</span></p>
                     <input type="range" id="time-slider" min="0" max="24" value="0" step="1" oninput="updateTimeText(this.value)">
-                    <div style="display:flex; justify-content: space-between; font-size: 10px; color: #94a3b8; margin-top: 5px; direction: ltr;">
-                        <span>12h Ago</span><span>Now</span>
+                    <div style="display:flex; justify-content: space-between; font-size: 10px; color: #94a3b8; margin-top: 5px;">
+                        <span>Now</span><span>12h Ago</span>
                     </div>
                 </div>
             </div>
@@ -148,7 +146,7 @@
             <div style="margin-top:10px;">
                 <label><input type="checkbox" id="toggle-notes"> Add Notes</label>
                 <div id="drawer-notes" class="drawer">
-                    <textarea id="pop-notes" rows="2" placeholder="Specific details..."></textarea>
+                    <textarea id="pop-notes" rows="2" placeholder="Notes..."></textarea>
                 </div>
             </div>
 
@@ -158,17 +156,16 @@
     </div>
 
     <script>
-        const KEY = 'symp_v100_r2';
+        const KEY = 'symp_v100_r3';
         let mode = 'log'; let view = 'front'; let activePart = '';
         let data = JSON.parse(localStorage.getItem(KEY)) || [];
-        let notifyInterval = parseInt(localStorage.getItem('notify_int')) || 3600000;
+        let remindMinutes = parseInt(localStorage.getItem('remind_mins')) || 60;
 
-        // Sync Select Box
-        document.getElementById('reminder-interval').value = notifyInterval;
+        document.getElementById('remind-min').value = remindMinutes;
 
-        function updateInterval(val) {
-            notifyInterval = parseInt(val);
-            localStorage.setItem('notify_int', val);
+        function updateRemindTime(val) {
+            remindMinutes = Math.max(1, parseInt(val));
+            localStorage.setItem('remind_mins', remindMinutes);
         }
 
         function updateNotifyStatus() {
@@ -184,17 +181,17 @@
             Notification.requestPermission().then(updateNotifyStatus);
         }
 
-        // Checkbox Drawers
         ['type', 'time', 'notes'].forEach(id => {
             document.getElementById('toggle-'+id).onchange = (e) => {
                 document.getElementById('drawer-'+id).style.display = e.target.checked ? 'block' : 'none';
             }
         });
 
+        // Math-based Manual Flip for Slider: 0 is Now, 24 is 12h ago.
         function updateTimeText(val) {
             if(val == 0) { document.getElementById('time-preview').innerText = "Now"; return; }
-            const offset = val * 30 * 60000;
-            const target = new Date(Date.now() - offset);
+            const offsetMs = val * 30 * 60000;
+            const target = new Date(Date.now() - offsetMs);
             document.getElementById('time-preview').innerText = target.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         }
 
@@ -223,44 +220,31 @@
                 end: null,
                 notes: notes,
                 types: types,
-                remindedCount: 0 
+                lastReminded: Date.now() - offset // Initialize so timer starts from symptom beginning
             });
             save(); closePop(); render();
-        }
-
-        function endLog(id) {
-            const item = data.find(x => x.id === id);
-            if(item) { item.end = Date.now(); save(); render(); }
-        }
-
-        function deleteItem(id) {
-            if(confirm("Delete this log?")) {
-                data = data.filter(x => x.id !== id);
-                save(); render();
-            }
         }
 
         function checkReminders() {
             if (Notification.permission !== "granted") return;
             const now = Date.now();
-            let triggered = 0;
+            let count = 0;
 
             data.forEach(s => {
                 if (!s.end) {
-                    const elapsed = now - s.start;
-                    const expectedReminders = Math.floor(elapsed / notifyInterval);
-                    if (expectedReminders > (s.remindedCount || 0)) {
-                        s.remindedCount = expectedReminders;
-                        triggered++;
+                    const diff = now - (s.lastReminded || s.start);
+                    if (diff >= (remindMinutes * 60000)) {
+                        s.lastReminded = now;
+                        count++;
                     }
                 }
             });
 
-            if (triggered > 0) {
+            if (count > 0) {
                 save();
-                new Notification("Symptom Update", { 
-                    body: `You have active symptoms. It has been ${Math.floor(notifyInterval/60000)}m since your last check.`,
-                    icon: "https://cdn-icons-png.flaticon.com/512/504/504500.png"
+                new Notification("Symptom Check-In", { 
+                    body: `Reminder: You have ${count} active symptoms logged. Open to update or end them.`,
+                    tag: 'symptom-remind'
                 });
             }
         }
@@ -271,24 +255,23 @@
             const actives = data.filter(x => !x.end);
             const pasts = data.filter(x => x.end);
 
-            activeDiv.innerHTML = actives.length ? "<h4 style='margin:10px 0'>Active</h4>" + actives.map(x => `
+            activeDiv.innerHTML = actives.length ? "<h4>Active</h4>" + actives.map(x => `
                 <div class="log-card active-card">
                     <strong>${x.part}</strong> (${x.val}/10)<br>
                     <small>${x.types.join(' • ')}</small>
                     ${x.notes ? `<p style="font-size:0.8rem; margin:5px 0;">${x.notes}</p>` : ''}
-                    <button onclick="endLog(${x.id})" style="background:#000; color:white; width:100%; margin-top:8px; padding:8px; border-radius:5px; border:none; font-weight:bold;">End Now</button>
+                    <button onclick="endLog(${x.id})" style="background:#000; color:white; width:100%; margin-top:8px; padding:8px; border-radius:5px; border:none; font-weight:bold;">End Symptom</button>
                     <button class="del-btn" onclick="deleteItem(${x.id})">Del</button>
                 </div>
             `).join('') : "";
 
-            historyDiv.innerHTML = pasts.length ? "<h4 style='margin:10px 0'>History</h4>" + pasts.slice(0,5).map(x => `
+            historyDiv.innerHTML = pasts.length ? "<h4>History</h4>" + pasts.slice(0,5).map(x => `
                 <div class="log-card">
                     <strong>${x.part}</strong> (${x.val}/10)<br>
                     <small>Duration: ${getDuration(x.start, x.end)}</small>
                     <button class="del-btn" onclick="deleteItem(${x.id})">Del</button>
                 </div>
             `).join('') : "";
-
             applyHeat();
         }
 
@@ -300,18 +283,17 @@
             return h > 0 ? `${h}h ${m}m` : `${m}m`;
         }
 
-        function toggleMode() {
-            mode = (mode === 'log') ? 'heat' : 'log';
-            document.getElementById('btn-mode').innerText = `Mode: ${mode.toUpperCase()}`;
-            document.getElementById('btn-mode').classList.toggle('active', mode === 'heat');
-            document.getElementById('canvas-container').classList.toggle('heat-mode-on', mode === 'heat');
-            render();
-        }
-
-        function toggleView() {
-            view = (view === 'front') ? 'back' : 'front';
-            document.getElementById('canvas-container').classList.toggle('showing-back');
-            render();
+        function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+        function closePop() { document.getElementById('pop').style.display = 'none'; }
+        function endLog(id) { const i = data.find(x => x.id === id); if(i){ i.end = Date.now(); save(); render(); }}
+        function deleteItem(id) { if(confirm("Delete?")){ data = data.filter(x => x.id !== id); save(); render(); }}
+        function toggleMode() { mode = (mode === 'log' ? 'heat' : 'log'); document.getElementById('btn-mode').innerText = "Mode: " + mode.toUpperCase(); document.getElementById('canvas-container').classList.toggle('heat-mode-on'); render(); }
+        function toggleView() { view = (view === 'front' ? 'back' : 'front'); document.getElementById('canvas-container').classList.toggle('showing-back'); render(); }
+        function exportCSV() {
+            let csv = "Part,Intensity,Types,Notes,Start,End,Duration\n";
+            data.forEach(x => csv += `"${x.part}",${x.val},"${x.types.join('|')}","${x.notes}","${new Date(x.start).toLocaleString()}","${x.end ? new Date(x.end).toLocaleString() : 'Active'}","${getDuration(x.start, x.end)}"\n`);
+            const blob = new Blob([csv], {type:'text/csv'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='symptoms.csv'; a.click();
         }
 
         function applyHeat() {
@@ -332,16 +314,6 @@
                     else el.classList.add('heat-low');
                 }
             }
-        }
-
-        function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
-        function closePop() { document.getElementById('pop').style.display = 'none'; }
-        function resetData() { if(confirm("Clear data?")) { data = []; save(); render(); } }
-        function exportCSV() {
-            let csv = "Part,Intensity,Types,Notes,Start,End,Duration\n";
-            data.forEach(x => csv += `"${x.part}",${x.val},"${x.types.join('|')}","${x.notes}","${new Date(x.start).toLocaleString()}","${x.end ? new Date(x.end).toLocaleString() : 'Active'}","${getDuration(x.start, x.end)}"\n`);
-            const blob = new Blob([csv], {type:'text/csv'});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='symptoms.csv'; a.click();
         }
 
         setInterval(() => { render(); checkReminders(); }, 60000);
