@@ -5,44 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Symptom Mapper v1.2.0</title>
     <style>
-        :root { --bg: #f8fafc; --primary: #2563eb; --text: #0f172a; --stroke: #334155; }
+        :root { --bg: #0f172a; --primary: #3b82f6; --text: #f1f5f9; --stroke: #475569; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         
         .header { text-align: center; margin-bottom: 10px; }
         .version-tag { font-size: 0.7rem; font-weight: bold; color: #64748b; letter-spacing: 1px; }
 
-        .config-row { width: 100%; max-width: 320px; background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; box-sizing: border-box;}
-        .input-mini { width: 50px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; font-weight: bold; }
+        .config-row { width: 100%; max-width: 320px; background: #1e293b; padding: 12px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; box-sizing: border-box;}
+        .input-mini { width: 50px; padding: 4px; border: 1px solid #475569; background: #0f172a; color: #f1f5f9; border-radius: 4px; text-align: center; font-weight: bold; }
 
         .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; width: 100%; }
         button { padding: 10px 14px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; }
         button.active { background: var(--primary); transform: scale(1.05); }
 
         /* BODY MAP & HEAT LOGIC */
-        .body-canvas { width: 100%; max-width: 320px; background: linear-gradient(165deg, #fefefe 0%, #f1f5f9 100%); border-radius: 20px; padding: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.04); margin-bottom: 20px; border: 1px solid #e2e8f0; box-sizing: border-box;}
+        .body-canvas { width: 100%; max-width: 320px; background: #1e293b; border-radius: 20px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-bottom: 20px; border: 1px solid #334155; box-sizing: border-box;}
         svg { width: 100%; height: auto; display: block; }
         
         /* Body outline (non-interactive silhouette) */
-        .body-outline { fill: #e2e8f0; opacity: 0.25; stroke: #cbd5e1; stroke-width: 0.4; pointer-events: none; }
+        .body-outline { fill: #1e293b; opacity: 0.4; stroke: #475569; stroke-width: 0.5; pointer-events: none; }
         
-        /* Tappable body parts */
+        /* Tappable body parts - color coded by body group */
         .body-part { 
-            stroke: #94a3b8; 
-            stroke-width: 0.6; 
+            stroke: #64748b; 
+            stroke-width: 0.8; 
             transition: all 0.2s ease; 
             cursor: pointer; 
-            -webkit-tap-highlight-color: transparent; 
-            fill: rgba(255, 255, 255, 0.5);
+            -webkit-tap-highlight-color: transparent;
+            fill: rgba(71, 85, 105, 0.5); /* default visible gray */
         }
-        /* Increase tap target for small zones like ears */
-        #left-ear, #right-ear { stroke-width: 2; stroke: rgba(148, 163, 184, 0.3); }
+        
+        /* Head & Face - bright purple */
+        #left-ear, #right-ear, #head-left, #head-center, #head-right,
+        #back-head-left, #back-head-center, #back-head-right { fill: rgba(167, 139, 250, 0.5); }
+        
+        /* Neck & Throat - bright teal */
+        #throat-left, #throat-right, #back-neck { fill: rgba(45, 212, 191, 0.5); }
+        
+        /* Shoulders & Arms - bright blue */
+        #left-shoulder, #right-shoulder, #left-arm, #right-arm,
+        #back-left-shoulder, #back-right-shoulder { fill: rgba(96, 165, 250, 0.5); }
+        
+        /* Hands & Wrists - bright cyan */
+        #left-wrist, #right-wrist, #left-hand, #right-hand { fill: rgba(103, 232, 249, 0.5); }
+        
+        /* Chest - bright coral */
+        #chest-left, #chest-center, #chest-right { fill: rgba(248, 113, 113, 0.45); }
+        
+        /* Abdomen - bright orange */
+        #abdomen-left, #abdomen-center, #abdomen-right { fill: rgba(251, 146, 60, 0.5); }
+        
+        /* Groin/Hips - bright pink */
+        #groin-left, #groin-center, #groin-right { fill: rgba(244, 114, 182, 0.5); }
+        
+        /* Back & Spine - bright slate */
+        #back-center-top, #back-center-mid, #back-center-low,
+        #back-left-top, #back-right-top, #back-left-mid, #back-right-mid,
+        #back-left-low, #back-right-low { fill: rgba(148, 163, 184, 0.5); }
+        
+        /* Glutes - bright rose */
+        #left-glute, #right-glute { fill: rgba(251, 113, 133, 0.5); }
+        
+        /* Legs - bright yellow */
+        #left-upper-leg, #right-upper-leg, #left-lower-leg, #right-lower-leg,
+        #back-left-upper-leg, #back-right-upper-leg, #back-left-lower-leg, #back-right-lower-leg { fill: rgba(250, 204, 21, 0.5); }
+        
+        /* Feet & Heels - bright amber */
+        #left-foot, #right-foot, #left-heel, #right-heel { fill: rgba(251, 191, 36, 0.5); }
+        
+        #left-ear, #right-ear { stroke-width: 2; stroke: rgba(100, 116, 139, 0.6); }
         .body-part:hover { 
-            fill: rgba(37, 99, 235, 0.2); 
-            stroke: var(--primary); 
+            filter: brightness(1.5) saturate(1.4);
+            stroke: #64748b; 
             stroke-width: 1.2; 
         }
         .body-part:active { 
-            fill: rgba(37, 99, 235, 0.35); 
+            filter: brightness(1.2);
         }
         
         #view-back { display: none; }
@@ -56,27 +94,28 @@
         .heat-mode-on .heat-high { fill: rgba(220, 38, 38, 0.85) !important; stroke: #b91c1c; stroke-width: 1.2; animation: sync-pulse 2s infinite ease-in-out; }
 
         /* CARDS */
-        .log-card { position: relative; background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.03); width: 100%; max-width: 320px; box-sizing: border-box; }
-        .active-card { border-left-color: #f59e0b; background: #fffbeb; }
-        .del-btn { position: absolute; top: 8px; right: 8px; background: #fee2e2; color: #b91c1c; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; }
+        .log-card { position: relative; background: #1e293b; padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.2); width: 100%; max-width: 320px; box-sizing: border-box; }
+        .active-card { border-left-color: #f59e0b; background: #422006; }
+        .del-btn { position: absolute; top: 8px; right: 8px; background: #7f1d1d; color: #fecaca; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; }
 
         /* MODAL & DRAWERS */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; }
-        .modal-content { background: white; width: 85%; padding: 20px; border-radius: 20px; text-align: left; max-height: 90vh; overflow-y: auto; }
-        .drawer { display: none; margin-top: 10px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; }
+        .modal-content { background: #1e293b; color: #f1f5f9; width: 85%; padding: 20px; border-radius: 20px; text-align: left; max-height: 90vh; overflow-y: auto; border: 1px solid #334155; }
+        .drawer { display: none; margin-top: 10px; padding: 10px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; }
         .descriptor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
-        textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; box-sizing: border-box; font-family: inherit; margin-top: 5px;}
+        textarea { width: 100%; border: 1px solid #475569; border-radius: 6px; padding: 8px; box-sizing: border-box; font-family: inherit; margin-top: 5px; background: #0f172a; color: #f1f5f9;}
         
-        .tab-btn { flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 3px solid transparent; font-weight: 600; font-size: 13px; color: #64748b; cursor: pointer; transition: 0.2s; }
+        .tab-btn { flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 3px solid transparent; font-weight: 600; font-size: 13px; color: #94a3b8; cursor: pointer; transition: 0.2s; }
         .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
-        .history-item { background: #f8fafc; padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12px; border-left: 3px solid #cbd5e1; }
-        .history-item-active { border-left-color: #f59e0b; background: #fffbeb; }
+        .history-item { background: #0f172a; padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12px; border-left: 3px solid #475569; }
+        .history-item-active { border-left-color: #f59e0b; background: #422006; }
         
         .time-select-row { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
-        select { padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; font-size: 14px; }
+        select { padding: 8px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f1f5f9; font-size: 14px; }
+        input[type="text"] { background: #0f172a; color: #f1f5f9; border: 1px solid #475569; }
 
         input[type="range"].rev-slider { width: 100%; appearance: none; height: 8px; border-radius: 5px; background: #e2e8f0; outline: none; margin: 15px 0; }
         input[type="range"].rev-slider::-webkit-slider-thumb { appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); border: 3px solid white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -534,8 +573,9 @@
                 updateActiveSlider(document.getElementById('time-slider').value);
             }
             
-            // Switch to New Entry tab and populate stats
-            switchTab('new');
+            // Show entry form and populate stats
+            document.getElementById('entry-form').style.display = 'block';
+            document.getElementById('history-view').style.display = 'none';
             populateStats(item.part);
             document.getElementById('pop').style.display = 'flex';
         }
