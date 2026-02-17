@@ -3,50 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v1.1.0</title>
+    <title>Symptom Mapper v1.2.0</title>
     <style>
-        :root { --bg: #f8fafc; --primary: #2563eb; --text: #0f172a; --stroke: #334155; }
+        :root { --bg: #0f172a; --primary: #3b82f6; --text: #f1f5f9; --stroke: #475569; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
         
         .header { text-align: center; margin-bottom: 10px; }
         .version-tag { font-size: 0.7rem; font-weight: bold; color: #64748b; letter-spacing: 1px; }
 
-        .config-row { width: 100%; max-width: 320px; background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; box-sizing: border-box;}
-        .input-mini { width: 50px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; font-weight: bold; }
+        .config-row { width: 100%; max-width: 320px; background: #1e293b; padding: 12px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; box-sizing: border-box;}
+        .input-mini { width: 50px; padding: 4px; border: 1px solid #475569; background: #0f172a; color: #f1f5f9; border-radius: 4px; text-align: center; font-weight: bold; }
 
         .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; width: 100%; }
         button { padding: 10px 14px; border-radius: 8px; border: none; background: #64748b; color: white; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; }
         button.active { background: var(--primary); transform: scale(1.05); }
 
         /* BODY MAP & HEAT LOGIC */
-        .body-canvas { width: 100%; max-width: 320px; background: white; border-radius: 20px; padding: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; box-sizing: border-box;}
+        .body-canvas { width: 100%; max-width: 320px; background: #1e293b; border-radius: 20px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-bottom: 20px; border: 1px solid #334155; box-sizing: border-box;}
         svg { width: 100%; height: auto; display: block; }
-        .body-part { stroke: var(--stroke); stroke-width: 1.2; transition: fill 0.3s ease; cursor: pointer; -webkit-tap-highlight-color: transparent; fill: #f8fafc; }
+        
+        /* Body outline (non-interactive silhouette) */
+        .body-outline { fill: #1e293b; opacity: 0.4; stroke: #475569; stroke-width: 0.5; pointer-events: none; }
+        
+        /* Tappable body parts - color coded by body group */
+        .body-part { 
+            stroke: #64748b; 
+            stroke-width: 0.8; 
+            transition: all 0.2s ease; 
+            cursor: pointer; 
+            -webkit-tap-highlight-color: transparent;
+            fill: rgba(71, 85, 105, 0.5); /* default visible gray */
+        }
+        
+        /* Head & Face - bright purple */
+        #left-ear, #right-ear, #head-left, #head-center, #head-right,
+        #back-head-left, #back-head-center, #back-head-right { fill: rgba(167, 139, 250, 0.5); }
+        
+        /* Neck & Throat - bright teal */
+        #throat-left, #throat-right, #back-neck { fill: rgba(45, 212, 191, 0.5); }
+        
+        /* Shoulders & Arms - bright blue */
+        #left-shoulder, #right-shoulder, #left-arm, #right-arm,
+        #back-left-shoulder, #back-right-shoulder { fill: rgba(96, 165, 250, 0.5); }
+        
+        /* Hands & Wrists - bright cyan */
+        #left-wrist, #right-wrist, #left-hand, #right-hand { fill: rgba(103, 232, 249, 0.5); }
+        
+        /* Chest - bright coral */
+        #chest-left, #chest-center, #chest-right { fill: rgba(248, 113, 113, 0.45); }
+        
+        /* Abdomen - bright orange */
+        #abdomen-left, #abdomen-center, #abdomen-right { fill: rgba(251, 146, 60, 0.5); }
+        
+        /* Groin/Hips - bright pink */
+        #groin-left, #groin-center, #groin-right { fill: rgba(244, 114, 182, 0.5); }
+        
+        /* Back & Spine - bright slate */
+        #back-center-top, #back-center-mid, #back-center-low,
+        #back-left-top, #back-right-top, #back-left-mid, #back-right-mid,
+        #back-left-low, #back-right-low { fill: rgba(148, 163, 184, 0.5); }
+        
+        /* Glutes - bright rose */
+        #left-glute, #right-glute { fill: rgba(251, 113, 133, 0.5); }
+        
+        /* Legs - bright yellow */
+        #left-upper-leg, #right-upper-leg, #left-lower-leg, #right-lower-leg,
+        #back-left-upper-leg, #back-right-upper-leg, #back-left-lower-leg, #back-right-lower-leg { fill: rgba(250, 204, 21, 0.5); }
+        
+        /* Feet & Heels - bright amber */
+        #left-foot, #right-foot, #left-heel, #right-heel { fill: rgba(251, 191, 36, 0.5); }
+        
+        #left-ear, #right-ear { stroke-width: 2; stroke: rgba(100, 116, 139, 0.6); }
+        .body-part:hover { 
+            filter: brightness(1.5) saturate(1.4);
+            stroke: #64748b; 
+            stroke-width: 1.2; 
+        }
+        .body-part:active { 
+            filter: brightness(1.2);
+        }
         
         #view-back { display: none; }
         .showing-back #view-front { display: none; }
         .showing-back #view-back { display: block; }
 
-        @keyframes sync-pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-        .heat-mode-on .body-part { fill: #f1f5f9 !important; stroke: #cbd5e1; }
-        .heat-mode-on .heat-low { fill: #fef08a !important; animation: sync-pulse 2s infinite ease-in-out; }
-        .heat-mode-on .heat-med { fill: #f97316 !important; animation: sync-pulse 2s infinite ease-in-out; }
-        .heat-mode-on .heat-high { fill: #b91c1c !important; animation: sync-pulse 2s infinite ease-in-out; }
+        @keyframes sync-pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .heat-mode-on .body-part { fill: rgba(248, 250, 252, 0.4) !important; stroke: #cbd5e1; }
+        .heat-mode-on .heat-low { fill: rgba(254, 240, 138, 0.75) !important; stroke: #ca8a04; stroke-width: 1; animation: sync-pulse 2s infinite ease-in-out; }
+        .heat-mode-on .heat-med { fill: rgba(251, 146, 60, 0.8) !important; stroke: #ea580c; stroke-width: 1; animation: sync-pulse 2s infinite ease-in-out; }
+        .heat-mode-on .heat-high { fill: rgba(220, 38, 38, 0.85) !important; stroke: #b91c1c; stroke-width: 1.2; animation: sync-pulse 2s infinite ease-in-out; }
 
         /* CARDS */
-        .log-card { position: relative; background: white; padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.03); width: 100%; max-width: 320px; box-sizing: border-box; }
-        .active-card { border-left-color: #f59e0b; background: #fffbeb; }
-        .del-btn { position: absolute; top: 8px; right: 8px; background: #fee2e2; color: #b91c1c; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; }
+        .log-card { position: relative; background: #1e293b; padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.2); width: 100%; max-width: 320px; box-sizing: border-box; }
+        .active-card { border-left-color: #f59e0b; background: #422006; }
+        .del-btn { position: absolute; top: 8px; right: 8px; background: #7f1d1d; color: #fecaca; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; }
 
         /* MODAL & DRAWERS */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; }
-        .modal-content { background: white; width: 85%; padding: 25px; border-radius: 20px; text-align: left; max-height: 90vh; overflow-y: auto; }
-        .drawer { display: none; margin-top: 10px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; }
+        .modal-content { background: #1e293b; color: #f1f5f9; width: 85%; padding: 20px; border-radius: 20px; text-align: left; max-height: 90vh; overflow-y: auto; border: 1px solid #334155; }
+        .drawer { display: none; margin-top: 10px; padding: 10px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; }
         .descriptor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
-        textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; box-sizing: border-box; font-family: inherit; margin-top: 5px;}
+        textarea { width: 100%; border: 1px solid #475569; border-radius: 6px; padding: 8px; box-sizing: border-box; font-family: inherit; margin-top: 5px; background: #0f172a; color: #f1f5f9;}
+        
+        .tab-btn { flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 3px solid transparent; font-weight: 600; font-size: 13px; color: #94a3b8; cursor: pointer; transition: 0.2s; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .history-item { background: #0f172a; padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 12px; border-left: 3px solid #475569; }
+        .history-item-active { border-left-color: #f59e0b; background: #422006; }
         
         .time-select-row { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
-        select { padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; font-size: 14px; }
+        select { padding: 8px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #f1f5f9; font-size: 14px; }
+        input[type="text"] { background: #0f172a; color: #f1f5f9; border: 1px solid #475569; }
 
         input[type="range"].rev-slider { width: 100%; appearance: none; height: 8px; border-radius: 5px; background: #e2e8f0; outline: none; margin: 15px 0; }
         input[type="range"].rev-slider::-webkit-slider-thumb { appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); border: 3px solid white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -58,7 +127,7 @@
 
     <div class="header">
         <h2 style="margin:0">Symptom Mapper</h2>
-        <div class="version-tag">v1.1.0 | EDIT SYMPTOMS</div>
+        <div class="version-tag">v1.2.0 | ANALYTICS + HISTORY</div>
     </div>
 
     <div class="config-row">
@@ -67,43 +136,143 @@
     </div>
 
     <div class="controls">
-        <button id="btn-mode" onclick="toggleMode()">Mode: Log</button>
+        <button id="btn-mode" onclick="toggleMode()">Mode: Entry</button>
         <button onclick="toggleView()" style="background:#7c3aed">Flip Body</button>
         <button onclick="exportCSV()">Export</button>
         <button onclick="resetData()" style="background:#ef4444">Reset</button>
     </div>
 
     <div class="body-canvas" id="canvas-container">
-        <svg viewBox="0 0 200 400">
+        <svg viewBox="0 0 200 440">
+            <!-- FRONT VIEW -->
             <g id="view-front">
-                <path id="head-left" class="body-part" d="M100,20 Q70,20 70,50 L100,50 Z" onclick="doTap('Head Left')" />
-                <rect id="head-center" class="body-part" x="90" y="20" width="20" height="30" onclick="doTap('Head Center')" />
-                <path id="head-right" class="body-part" d="M100,20 Q130,20 130,50 L100,50 Z" onclick="doTap('Head Right')" />
-                <rect id="neck-throat" class="body-part" x="85" y="55" width="30" height="15" rx="2" onclick="doTap('Neck / Throat')" />
-                <rect id="chest-left" class="body-part" x="50" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Left')" />
-                <rect id="chest-center" class="body-part" x="90" y="75" width="20" height="70" onclick="doTap('Chest Center')" />
-                <rect id="chest-right" class="body-part" x="110" y="75" width="40" height="70" rx="5" onclick="doTap('Chest Right')" />
-                <rect id="abdomen-left" class="body-part" x="55" y="145" width="35" height="50" onclick="doTap('Abdomen Left')" />
-                <rect id="abdomen-center" class="body-part" x="90" y="145" width="20" height="50" onclick="doTap('Abdomen Center')" />
-                <rect id="abdomen-right" class="body-part" x="110" y="145" width="35" height="50" onclick="doTap('Abdomen Right')" />
-                <rect id="groin-left" class="body-part" x="65" y="195" width="25" height="35" onclick="doTap('Groin Left')" />
-                <rect id="groin-center" class="body-part" x="90" y="195" width="20" height="35" onclick="doTap('Groin Center')" />
-                <rect id="groin-right" class="body-part" x="110" y="195" width="25" height="35" onclick="doTap('Groin Right')" />
-                <path id="left-arm" class="body-part" d="M50,80 Q20,80 20,110 L35,210 Q45,220 55,210 Z" onclick="doTap('Left Arm')" />
-                <path id="right-arm" class="body-part" d="M150,80 Q180,80 180,110 L165,210 Q155,220 145,210 Z" onclick="doTap('Right Arm')" />
-                <path id="left-leg" class="body-part" d="M65,230 L90,230 L90,360 Q75,375 60,360 Z" onclick="doTap('Left Leg')" />
-                <path id="right-leg" class="body-part" d="M110,230 L135,230 L135,360 Q120,375 105,360 Z" onclick="doTap('Right Leg')" />
+                <!-- Body outline silhouette (non-interactive, for context) -->
+                <path class="body-outline" d="
+                    M100,10 
+                    Q85,10 80,20 Q75,30 75,42
+                    L75,52 Q75,58 78,62
+                    L45,75 Q30,78 25,85 L20,105 L18,125 L20,155 L25,175 L30,195 L35,215 Q38,222 45,225
+                    L50,230 Q48,235 48,242 L48,285 Q48,295 50,305 L52,335 Q52,348 55,358
+                    L58,375 Q60,385 65,390 Q70,395 75,395
+                    L75,410 Q75,420 70,430 Q68,435 70,440
+                    L85,440 Q87,438 87,435 L87,415 Q87,405 90,400
+                    L90,385
+                    L95,385
+                    Q100,388 105,385
+                    L110,385
+                    L110,400 Q113,405 113,415 L113,435 Q113,438 115,440
+                    L130,440 Q132,435 130,430 Q125,420 125,410
+                    L125,395 Q130,395 135,390 Q140,385 142,375
+                    L145,358 Q148,348 148,335 L150,305 Q152,295 152,285 L152,242 Q152,235 150,230
+                    L155,225 Q162,222 165,215 L170,195 L175,175 L180,155 L182,125 L180,105 L175,85 Q170,78 155,75
+                    L122,62 Q125,58 125,52
+                    L125,42 Q125,30 120,20 Q115,10 100,10
+                    Z"/>
+                
+                <!-- HEAD & FACE (spread out for easier tapping) -->
+                <ellipse id="left-ear" class="body-part" cx="68" cy="28" rx="9" ry="15" onclick="doTap('Left Ear')" />
+                <ellipse id="right-ear" class="body-part" cx="132" cy="28" rx="9" ry="15" onclick="doTap('Right Ear')" />
+                <path id="head-left" class="body-part" d="M76,16 Q71,20 71,30 L71,50 L93,50 L93,18 Q87,14 76,16 Z" onclick="doTap('Head Left')" />
+                <rect id="head-center" class="body-part" x="93" y="14" width="14" height="38" rx="2" onclick="doTap('Head Center')" />
+                <path id="head-right" class="body-part" d="M107,18 L107,50 L129,50 L129,30 Q129,20 124,16 Q113,14 107,18 Z" onclick="doTap('Head Right')" />
+                
+                <!-- NECK & THROAT (moved down slightly) -->
+                <rect id="throat-left" class="body-part" x="80" y="54" width="20" height="14" rx="2" onclick="doTap('Throat Left')" />
+                <rect id="throat-right" class="body-part" x="100" y="54" width="20" height="14" rx="2" onclick="doTap('Throat Right')" />
+                
+                <!-- SHOULDERS -->
+                <path id="left-shoulder" class="body-part" d="M50,68 Q38,70 32,78 L40,90 Q48,88 55,85 L62,78 Q58,72 50,68 Z" onclick="doTap('Left Shoulder')" />
+                <path id="right-shoulder" class="body-part" d="M150,68 Q162,70 168,78 L160,90 Q152,88 145,85 L138,78 Q142,72 150,68 Z" onclick="doTap('Right Shoulder')" />
+                
+                <!-- CHEST -->
+                <path id="chest-left" class="body-part" d="M48,92 L55,87 L70,92 L75,120 L70,148 L55,145 L45,130 Q42,110 48,92 Z" onclick="doTap('Chest Left')" />
+                <rect id="chest-center" class="body-part" x="70" y="90" width="60" height="60" rx="3" onclick="doTap('Chest Center')" />
+                <path id="chest-right" class="body-part" d="M152,92 L145,87 L130,92 L125,120 L130,148 L145,145 L155,130 Q158,110 152,92 Z" onclick="doTap('Chest Right')" />
+                
+                <!-- ABDOMEN -->
+                <rect id="abdomen-left" class="body-part" x="55" y="152" width="35" height="52" rx="2" onclick="doTap('Abdomen Left')" />
+                <rect id="abdomen-center" class="body-part" x="90" y="152" width="20" height="52" onclick="doTap('Abdomen Center')" />
+                <rect id="abdomen-right" class="body-part" x="110" y="152" width="35" height="52" rx="2" onclick="doTap('Abdomen Right')" />
+                
+                <!-- GROIN / HIPS -->
+                <path id="groin-left" class="body-part" d="M58,207 L85,207 L88,228 L78,235 Q68,235 62,230 Q58,225 58,207 Z" onclick="doTap('Groin Left')" />
+                <rect id="groin-center" class="body-part" x="88" y="207" width="24" height="23" onclick="doTap('Groin Center')" />
+                <path id="groin-right" class="body-part" d="M112,207 L142,207 Q142,225 138,230 Q132,235 122,235 L112,228 Z" onclick="doTap('Groin Right')" />
+                
+                <!-- ARMS -->
+                <path id="left-arm" class="body-part" d="M30,92 L38,105 L42,140 L40,165 L35,180 Q32,185 35,190 L28,192 Q23,185 25,175 L22,135 Q20,110 25,95 Z" onclick="doTap('Left Arm')" />
+                <path id="right-arm" class="body-part" d="M170,92 L162,105 L158,140 L160,165 L165,180 Q168,185 165,190 L172,192 Q177,185 175,175 L178,135 Q180,110 175,95 Z" onclick="doTap('Right Arm')" />
+                
+                <!-- WRISTS & HANDS -->
+                <ellipse id="left-wrist" class="body-part" cx="30" cy="198" rx="8" ry="10" onclick="doTap('Left Wrist')" />
+                <ellipse id="right-wrist" class="body-part" cx="170" cy="198" rx="8" ry="10" onclick="doTap('Right Wrist')" />
+                <path id="left-hand" class="body-part" d="M24,210 Q20,215 22,222 L26,230 Q28,235 32,235 Q36,235 38,230 L42,222 Q44,215 40,210 Q35,207 30,207 Q25,207 24,210 Z" onclick="doTap('Left Hand')" />
+                <path id="right-hand" class="body-part" d="M176,210 Q180,215 178,222 L174,230 Q172,235 168,235 Q164,235 162,230 L158,222 Q156,215 160,210 Q165,207 170,207 Q175,207 176,210 Z" onclick="doTap('Right Hand')" />
+                
+                <!-- LEGS (simplified for mobile) -->
+                <path id="left-upper-leg" class="body-part" d="M52,238 L88,238 L90,310 L82,320 L68,320 L58,310 Q50,270 52,238 Z" onclick="doTap('Left Upper Leg')" />
+                <path id="right-upper-leg" class="body-part" d="M112,238 L148,238 Q150,270 142,310 L132,320 L118,320 L110,310 Z" onclick="doTap('Right Upper Leg')" />
+                <path id="left-lower-leg" class="body-part" d="M60,325 L86,325 L88,385 L82,395 L68,395 L62,385 Q58,355 60,325 Z" onclick="doTap('Left Lower Leg')" />
+                <path id="right-lower-leg" class="body-part" d="M114,325 L140,325 Q142,355 138,385 L132,395 L120,395 L114,385 Z" onclick="doTap('Right Lower Leg')" />
+                <path id="left-foot" class="body-part" d="M64,400 L84,400 Q88,405 88,415 L88,430 Q88,436 82,438 L68,438 Q62,436 62,430 L62,415 Q62,405 64,400 Z" onclick="doTap('Left Foot')" />
+                <path id="right-foot" class="body-part" d="M116,400 L136,400 Q140,405 140,415 L140,430 Q140,436 134,438 L120,438 Q114,436 114,430 L114,415 Q114,405 116,400 Z" onclick="doTap('Right Foot')" />
             </g>
+
+            <!-- BACK VIEW -->
             <g id="view-back">
-                <rect id="spine" class="body-part" x="88" y="70" width="24" height="160" onclick="doTap('Spine')" />
-                <rect id="back-left-top" class="body-part" x="45" y="70" width="43" height="50" onclick="doTap('Back Left Top')" />
-                <rect id="back-right-top" class="body-part" x="112" y="70" width="43" height="50" onclick="doTap('Back Right Top')" />
-                <rect id="back-left-mid" class="body-part" x="48" y="120" width="40" height="50" onclick="doTap('Back Left Mid')" />
-                <rect id="back-right-mid" class="body-part" x="112" y="120" width="40" height="50" onclick="doTap('Back Right Mid')" />
-                <rect id="back-left-low" class="body-part" x="50" y="170" width="38" height="60" onclick="doTap('Back Left Low')" />
-                <rect id="back-right-low" class="body-part" x="112" y="170" width="38" height="60" onclick="doTap('Back Right Low')" />
-                <rect id="left-glute" class="body-part" x="50" y="230" width="45" height="55" rx="15" onclick="doTap('Left Glute')" />
-                <rect id="right-glute" class="body-part" x="105" y="230" width="45" height="55" rx="15" onclick="doTap('Right Glute')" />
+                <!-- Body outline (back) -->
+                <path class="body-outline" d="
+                    M100,10 Q85,12 80,20 L78,35 Q75,45 75,52 L78,62
+                    L45,75 Q30,78 25,90 L20,120 L18,150 L22,180 L28,205 Q32,215 38,222
+                    L48,232 L48,270 Q48,290 50,310 L52,345 Q54,365 58,380
+                    L62,398 Q65,408 70,415 L75,430 Q75,435 72,440
+                    L85,440 L87,430 L87,410 Q87,398 90,390
+                    L95,390 L100,392 L105,390
+                    L110,390 Q113,398 113,410 L113,430 L115,440
+                    L128,440 Q125,435 125,430 L130,415 Q135,408 138,398
+                    L142,380 Q146,365 148,345 L150,310 Q152,290 152,270 L152,232
+                    L162,222 Q168,215 172,205 L178,180 L182,150 L180,120 L175,90 Q170,78 155,75
+                    L122,62 L125,52 Q125,45 122,35 L120,20 Q115,12 100,10
+                    Z"/>
+                
+                <!-- HEAD (back) -->
+                <ellipse id="back-head-left" class="body-part" cx="85" cy="30" rx="10" ry="18" onclick="doTap('Back Head Left')" />
+                <rect id="back-head-center" class="body-part" x="95" y="15" width="10" height="35" onclick="doTap('Back Head Center')" />
+                <ellipse id="back-head-right" class="body-part" cx="115" cy="30" rx="10" ry="18" onclick="doTap('Back Head Right')" />
+                
+                <!-- NECK (back) -->
+                <rect id="back-neck" class="body-part" x="88" y="52" width="24" height="16" rx="2" onclick="doTap('Back Neck')" />
+                
+                <!-- SHOULDERS (back) -->
+                <path id="back-left-shoulder" class="body-part" d="M48,70 Q36,72 30,82 L35,95 Q42,93 50,90 L58,82 Q54,75 48,70 Z" onclick="doTap('Back Left Shoulder')" />
+                <path id="back-right-shoulder" class="body-part" d="M152,70 Q164,72 170,82 L165,95 Q158,93 150,90 L142,82 Q146,75 152,70 Z" onclick="doTap('Back Right Shoulder')" />
+                
+                <!-- UPPER BACK + SPINE -->
+                <rect id="back-center-top" class="body-part" x="92" y="70" width="16" height="48" onclick="doTap('Back Center Top')" />
+                <rect id="back-left-top" class="body-part" x="48" y="75" width="44" height="43" onclick="doTap('Back Left Top')" />
+                <rect id="back-right-top" class="body-part" x="108" y="75" width="44" height="43" onclick="doTap('Back Right Top')" />
+                
+                <!-- MID BACK + SPINE -->
+                <rect id="back-center-mid" class="body-part" x="92" y="118" width="16" height="48" onclick="doTap('Back Center Mid')" />
+                <rect id="back-left-mid" class="body-part" x="50" y="118" width="42" height="48" onclick="doTap('Back Left Mid')" />
+                <rect id="back-right-mid" class="body-part" x="108" y="118" width="42" height="48" onclick="doTap('Back Right Mid')" />
+                
+                <!-- LOWER BACK + SPINE -->
+                <rect id="back-center-low" class="body-part" x="92" y="166" width="16" height="48" onclick="doTap('Back Center Low')" />
+                <rect id="back-left-low" class="body-part" x="52" y="166" width="40" height="48" onclick="doTap('Back Left Low')" />
+                <rect id="back-right-low" class="body-part" x="108" y="166" width="40" height="48" onclick="doTap('Back Right Low')" />
+                
+                <!-- GLUTES -->
+                <path id="left-glute" class="body-part" d="M55,218 L88,218 L90,250 Q88,260 82,265 L70,270 Q60,268 56,260 Q52,250 55,218 Z" onclick="doTap('Left Glute')" />
+                <path id="right-glute" class="body-part" d="M112,218 L145,218 Q148,250 144,260 Q140,268 130,270 L118,265 Q112,260 110,250 Z" onclick="doTap('Right Glute')" />
+                
+                <!-- BACK LEGS (simplified for mobile) -->
+                <path id="back-left-upper-leg" class="body-part" d="M58,275 L88,275 L90,325 L82,335 L68,335 L60,325 Q56,300 58,275 Z" onclick="doTap('Back Left Upper Leg')" />
+                <path id="back-right-upper-leg" class="body-part" d="M112,275 L142,275 Q144,300 140,325 L132,335 L120,335 L110,325 Z" onclick="doTap('Back Right Upper Leg')" />
+                <path id="back-left-lower-leg" class="body-part" d="M62,340 L86,340 L88,395 L82,405 L68,405 L62,395 Q60,368 62,340 Z" onclick="doTap('Back Left Lower Leg')" />
+                <path id="back-right-lower-leg" class="body-part" d="M114,340 L138,340 Q140,368 138,395 L132,405 L120,405 L114,395 Z" onclick="doTap('Back Right Lower Leg')" />
+                <rect id="left-heel" class="body-part" x="65" y="410" width="14" height="26" rx="4" onclick="doTap('Left Heel')" />
+                <rect id="right-heel" class="body-part" x="121" y="410" width="14" height="26" rx="4" onclick="doTap('Right Heel')" />
             </g>
         </svg>
     </div>
@@ -115,67 +284,114 @@
 
     <div id="pop" class="modal">
         <div class="modal-content">
-            <h3 id="pop-title" style="margin:0 0 15px 0">Symptom Log</h3>
-            <p style="margin:0">Intensity: <span id="int-val" style="font-weight:bold; color:var(--primary)">5</span>/10</p>
-            <input type="range" id="int-slide" min="1" max="10" value="5" oninput="document.getElementById('int-val').innerText=this.value">
-            
-            <div style="margin-top:15px;">
-                <label><input type="checkbox" id="toggle-type"> Pain Description</label>
-                <div id="drawer-type" class="drawer descriptor-grid">
-                    <label><input type="checkbox" class="p-type" value="Aching"> Aching</label>
-                    <label><input type="checkbox" class="p-type" value="Sharp"> Sharp</label>
-                    <label><input type="checkbox" class="p-type" value="Burning"> Burning</label>
-                    <label><input type="checkbox" class="p-type" value="Dull"> Dull</label>
-                    <label><input type="checkbox" class="p-type" value="Thumping"> Thumping</label>
-                    <label><input type="checkbox" class="p-type" value="Stabbing"> Stabbing</label>
-                    <label><input type="checkbox" class="p-type" value="Tingling"> Tingling</label>
-                    <label><input type="checkbox" class="p-type" value="Cramping"> Cramping</label>
-                </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 id="pop-title" style="margin:0">Symptom Log</h3>
+                <button onclick="closePop()" style="background:#e2e8f0; color:#475569; padding:6px 10px; border-radius:6px; border:none; font-size:12px; font-weight:bold;">✕</button>
             </div>
 
-            <div style="margin-top:10px;">
-                <label><input type="checkbox" id="toggle-time"> <span id="label-time">Set Start Time</span></label>
-                <div id="drawer-time" class="drawer">
-                    <div id="slider-wrap">
-                        <p style="margin:0">Began at: <span id="time-preview" style="font-weight:bold; color:var(--primary)">Now</span></p>
-                        <input type="range" id="time-slider" class="rev-slider" min="0" max="24" value="0" step="1" oninput="updateActiveSlider(this.value)">
-                        <div style="display:flex; justify-content: space-between; font-size: 10px; color: #94a3b8;">
-                            <span>Now</span><span>12h Ago</span>
-                        </div>
+            <!-- Stats Bar -->
+            <div id="part-stats" style="background:#f8fafc; border-radius:8px; padding:10px; margin-bottom:12px; font-size:12px; display:none;">
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; text-align:center;">
+                    <div>
+                        <div style="font-weight:bold; color:var(--primary); font-size:16px;" id="stat-avg">—</div>
+                        <div style="color:#64748b; font-size:10px;">Avg Intensity</div>
                     </div>
-
-                    <div id="boxes-wrap" style="display:none;">
-                        <p style="margin:5px 0; font-size:11px; color:#64748b;">START TIME</p>
-                        <div class="time-select-row">
-                            <select id="start-h"></select> : 
-                            <select id="start-m"><option value="0">00</option><option value="30">30</option></select>
-                            <select id="start-ap"><option>AM</option><option>PM</option></select>
-                        </div>
-                        <p style="margin:15px 0 5px 0; font-size:11px; color:#64748b;">END TIME</p>
-                        <div class="time-select-row">
-                            <select id="end-h"></select> : 
-                            <select id="end-m"><option value="0">00</option><option value="30">30</option></select>
-                            <select id="end-ap"><option>AM</option><option>PM</option></select>
-                        </div>
+                    <div>
+                        <div style="font-weight:bold; color:var(--primary); font-size:16px;" id="stat-count">—</div>
+                        <div style="color:#64748b; font-size:10px;">Total Logs</div>
+                    </div>
+                    <div>
+                        <div style="font-weight:bold; color:var(--primary); font-size:11px;" id="stat-last">—</div>
+                        <div style="color:#64748b; font-size:10px;">Last Logged</div>
                     </div>
                 </div>
             </div>
 
-            <div style="margin-top:10px;">
-                <label><input type="checkbox" id="toggle-notes"> Add Notes</label>
-                <div id="drawer-notes" class="drawer">
-                    <textarea id="pop-notes" rows="2" placeholder="Any specific details?"></textarea>
+            <!-- ENTRY FORM (shown in entry mode) -->
+            <div id="entry-form">
+                <p style="margin:0 0 8px 0; font-size:13px;">Intensity: <span id="int-val" style="font-weight:bold; color:var(--primary)">5</span>/10</p>
+                <input type="range" id="int-slide" min="1" max="10" value="5" oninput="document.getElementById('int-val').innerText=this.value">
+                
+                <div style="margin-top:12px;">
+                    <label><input type="checkbox" id="toggle-type"> Pain Description</label>
+                    <div id="drawer-type" class="drawer descriptor-grid">
+                        <label><input type="checkbox" class="p-type" value="Aching"> Aching</label>
+                        <label><input type="checkbox" class="p-type" value="Sharp"> Sharp</label>
+                        <label><input type="checkbox" class="p-type" value="Burning"> Burning</label>
+                        <label><input type="checkbox" class="p-type" value="Dull"> Dull</label>
+                        <label><input type="checkbox" class="p-type" value="Throbbing"> Throbbing</label>
+                        <label><input type="checkbox" class="p-type" value="Stabbing"> Stabbing</label>
+                        <label><input type="checkbox" class="p-type" value="Tingling"> Tingling</label>
+                        <label><input type="checkbox" class="p-type" value="Cramping"> Cramping</label>
+                        <label><input type="checkbox" class="p-type" value="Pressure"> Pressure</label>
+                        <label><input type="checkbox" class="p-type" value="Radiating"> Radiating</label>
+                        <label><input type="checkbox" class="p-type" value="Shooting"> Shooting</label>
+                        <label><input type="checkbox" class="p-type" value="Stiff"> Stiff</label>
+                        <label><input type="checkbox" class="p-type" value="Numb"> Numb</label>
+                    </div>
+                </div>
+
+                <div style="margin-top:10px;">
+                    <label><input type="checkbox" id="toggle-time"> <span id="label-time">Set Start Time</span></label>
+                    <div id="drawer-time" class="drawer">
+                        <div id="slider-wrap">
+                            <p style="margin:0; font-size:12px;">Began at: <span id="time-preview" style="font-weight:bold; color:var(--primary)">Now</span></p>
+                            <input type="range" id="time-slider" class="rev-slider" min="0" max="24" value="0" step="1" oninput="updateActiveSlider(this.value)">
+                            <div style="display:flex; justify-content: space-between; font-size: 10px; color: #94a3b8;">
+                                <span>Now</span><span>12h Ago</span>
+                            </div>
+                        </div>
+
+                        <div id="boxes-wrap" style="display:none;">
+                            <p style="margin:5px 0; font-size:11px; color:#64748b;">START TIME</p>
+                            <div class="time-select-row">
+                                <select id="start-h"></select> : 
+                                <select id="start-m"><option value="0">00</option><option value="30">30</option></select>
+                                <select id="start-ap"><option>AM</option><option>PM</option></select>
+                            </div>
+                            <p style="margin:15px 0 5px 0; font-size:11px; color:#64748b;">END TIME</p>
+                            <div class="time-select-row">
+                                <select id="end-h"></select> : 
+                                <select id="end-m"><option value="0">00</option><option value="30">30</option></select>
+                                <select id="end-ap"><option>AM</option><option>PM</option></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:10px;">
+                    <label><input type="checkbox" id="toggle-meds"> Medication/Treatment</label>
+                    <div id="drawer-meds" class="drawer">
+                        <input type="text" id="pop-meds" placeholder="e.g., Ibuprofen 400mg, ice pack" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <div style="margin-top:10px;">
+                    <label><input type="checkbox" id="toggle-notes"> Add Notes</label>
+                    <div id="drawer-notes" class="drawer">
+                        <textarea id="pop-notes" rows="2" placeholder="Any specific details?"></textarea>
+                    </div>
+                </div>
+
+                <button style="background:var(--primary); width:100%; margin-top:16px; padding:12px; font-weight:bold; color:white; border-radius:8px; border:none;" onclick="confirmLog()">Save Entry</button>
+            </div>
+
+            <!-- HISTORY LIST (shown in heat mode) -->
+            <div id="history-view" style="display:none;">
+                <div id="history-list" style="max-height:400px; overflow-y:auto;"></div>
+                <div id="history-empty" style="text-align:center; padding:40px 20px; color:#94a3b8; font-size:13px; display:none;">
+                    <div style="font-size:2rem; margin-bottom:8px;">📊</div>
+                    <div>No entries for this body part</div>
                 </div>
             </div>
 
-            <button style="background:var(--primary); width:100%; margin-top:20px; padding:12px; font-weight:bold; color:white; border-radius:8px; border:none;" onclick="confirmLog()">Save</button>
-            <button onclick="closePop()" style="width:100%; margin-top:10px; background:#e2e8f0; color:#475569; padding:10px; border-radius:8px; border:none;">Cancel</button>
+            <button onclick="closePop()" style="width:100%; margin-top:10px; background:#e2e8f0; color:#475569; padding:10px; border-radius:8px; border:none; font-weight:bold; font-size:13px;">Close</button>
         </div>
     </div>
 
     <script>
         const KEY = 'symp_v100_final';
-        let mode = 'log'; let view = 'front'; let activePart = ''; let editingId = null;
+        let mode = 'entry'; let view = 'front'; let activePart = ''; let editingId = null;
         let data = JSON.parse(localStorage.getItem(KEY)) || [];
 
         // UI HELPERS
@@ -201,7 +417,7 @@
             for(let i=1; i<=12; i++) el.innerHTML += `<option value="${i}">${i}</option>`;
         });
 
-        ['type', 'time', 'notes'].forEach(id => {
+        ['type', 'time', 'meds', 'notes'].forEach(id => {
             document.getElementById('toggle-'+id).onchange = (e) => {
                 document.getElementById('drawer-'+id).style.display = e.target.checked ? 'block' : 'none';
             }
@@ -239,19 +455,92 @@
             return d.getTime();
         }
 
+        // TAB SWITCHING
+        function populateHistory(part) {
+            const partData = data.filter(x => x.part === part).sort((a,b) => b.start - a.start);
+            const listEl = document.getElementById('history-list');
+            const emptyEl = document.getElementById('history-empty');
+            
+            if (partData.length === 0) {
+                listEl.innerHTML = '';
+                emptyEl.style.display = 'block';
+                return;
+            }
+            
+            emptyEl.style.display = 'none';
+            listEl.innerHTML = partData.slice(0, 20).map(x => {
+                const isActive = !x.end;
+                const dateStr = new Date(x.start).toLocaleDateString([], {month:'short', day:'numeric'});
+                const timeStr = new Date(x.start).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                const durationStr = x.end ? getDuration(x.start, x.end) : 'Active';
+                const medsStr = x.meds ? `<div style="margin-top:4px; color:#7c3aed; font-size:11px;">💊 ${x.meds}</div>` : '';
+                return `<div class="history-item ${isActive ? 'history-item-active' : ''}">
+                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:4px;">
+                        <strong style="color:var(--primary); font-size:13px;">${x.val}/10</strong>
+                        <span style="color:#64748b; font-size:11px;">${dateStr} ${timeStr}</span>
+                    </div>
+                    <div style="color:#475569; font-size:11px;">${x.types.length ? x.types.join(' • ') : 'No description'}</div>
+                    <div style="color:#64748b; font-size:11px; margin-top:2px;">Duration: ${durationStr}</div>
+                    ${medsStr}
+                    ${x.notes ? `<div style="margin-top:4px; font-size:11px; color:#64748b; font-style:italic;">"${x.notes}"</div>` : ''}
+                    <button onclick="doEdit(${x.id})" style="margin-top:6px; padding:4px 8px; background:#e2e8f0; border:none; border-radius:4px; font-size:10px; font-weight:bold; color:#475569;">Edit</button>
+                </div>`;
+            }).join('');
+        }
+
+        function populateStats(part) {
+            const partData = data.filter(x => x.part === part);
+            const statsEl = document.getElementById('part-stats');
+            
+            if (partData.length === 0) {
+                statsEl.style.display = 'none';
+                return;
+            }
+            
+            statsEl.style.display = 'block';
+            const avg = (partData.reduce((sum, x) => sum + x.val, 0) / partData.length).toFixed(1);
+            const count = partData.length;
+            const last = partData.sort((a,b) => b.start - a.start)[0];
+            const lastStr = last ? new Date(last.start).toLocaleDateString([], {month:'short', day:'numeric'}) : '—';
+            
+            document.getElementById('stat-avg').innerText = avg;
+            document.getElementById('stat-count').innerText = count;
+            document.getElementById('stat-last').innerText = lastStr;
+        }
+
         // ACTIONS
         function doTap(name) {
-            if (mode === 'heat') return;
-            editingId = null; 
             activePart = name;
+            editingId = null;
             document.getElementById('pop-title').innerText = name;
-            document.getElementById('label-time').innerText = "Set Start Time";
+            populateStats(name);
+            
+            const entryForm = document.getElementById('entry-form');
+            const historyView = document.getElementById('history-view');
+            
+            // Heat mode: show history for this part
+            if (mode === 'heat') {
+                entryForm.style.display = 'none';
+                historyView.style.display = 'block';
+                populateHistory(name);
+                document.getElementById('pop').style.display = 'flex';
+                return;
+            }
+            
+            // Entry mode: show entry form
+            entryForm.style.display = 'block';
+            historyView.style.display = 'none';
+            
+            document.getElementById('label-time').innerText = "Change Start Time";
             document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
             document.querySelectorAll('.drawer').forEach(d => d.style.display = 'none');
             document.getElementById('slider-wrap').style.display = 'block';
             document.getElementById('boxes-wrap').style.display = 'none';
             document.getElementById('time-slider').value = 0;
+            document.getElementById('pop-meds').value = '';
+            document.getElementById('pop-notes').value = '';
             updateActiveSlider(0);
+            
             document.getElementById('pop').style.display = 'flex';
         }
 
@@ -264,6 +553,7 @@
             document.getElementById('int-slide').value = item.val;
             document.getElementById('int-val').innerText = item.val;
             document.getElementById('pop-notes').value = item.notes || '';
+            document.getElementById('pop-meds').value = item.meds || '';
             document.querySelectorAll('.p-type').forEach(cb => cb.checked = item.types.includes(cb.value));
             document.getElementById('toggle-time').checked = true;
             document.getElementById('drawer-time').style.display = 'block';
@@ -275,19 +565,25 @@
                 setUITime(new Date(item.start), 'start');
                 setUITime(new Date(item.end), 'end');
             } else {
-                document.getElementById('label-time').innerText = "Set Start Time";
+                document.getElementById('label-time').innerText = "Change Start Time";
                 document.getElementById('slider-wrap').style.display = 'block';
                 document.getElementById('boxes-wrap').style.display = 'none';
                 const diffBlocks = Math.round((Date.now() - item.start) / (30 * 60000));
                 document.getElementById('time-slider').value = Math.min(24, diffBlocks);
                 updateActiveSlider(document.getElementById('time-slider').value);
             }
+            
+            // Show entry form and populate stats
+            document.getElementById('entry-form').style.display = 'block';
+            document.getElementById('history-view').style.display = 'none';
+            populateStats(item.part);
             document.getElementById('pop').style.display = 'flex';
         }
 
         function confirmLog() {
             const types = Array.from(document.querySelectorAll('.p-type:checked')).map(c => c.value);
             const notes = document.getElementById('toggle-notes').checked ? document.getElementById('pop-notes').value : "";
+            const meds = document.getElementById('toggle-meds').checked ? document.getElementById('pop-meds').value : "";
             let startTs, endTs = null;
             const original = editingId ? data.find(x => x.id === editingId) : null;
 
@@ -302,10 +598,10 @@
 
             if (editingId) {
                 const idx = data.findIndex(x => x.id === editingId);
-                data[idx] = { ...data[idx], val: parseInt(document.getElementById('int-slide').value), types, notes, start: startTs, end: endTs };
+                data[idx] = { ...data[idx], val: parseInt(document.getElementById('int-slide').value), types, notes, meds, start: startTs, end: endTs };
                 logToBox(`Updated: ${activePart}`);
             } else {
-                data.unshift({ id: Date.now(), part: activePart, val: parseInt(document.getElementById('int-slide').value), start: startTs, lastCheck: Date.now(), end: null, notes, types });
+                data.unshift({ id: Date.now(), part: activePart, val: parseInt(document.getElementById('int-slide').value), start: startTs, lastCheck: Date.now(), end: null, notes, types, meds });
                 logToBox(`Logged: ${activePart}`);
             }
             save(); closePop(); render();
@@ -341,7 +637,12 @@
         function closePop() { document.getElementById('pop').style.display = 'none'; editingId = null; }
         function endLog(id) { const i = data.find(x => x.id === id); if(i) { i.end = Date.now(); save(); render(); }}
         function deleteItem(id) { if(confirm("Delete?")) { data = data.filter(x => x.id !== id); save(); render(); }}
-        function toggleMode() { mode = (mode === 'log') ? 'heat' : 'log'; document.body.classList.toggle('heat-mode-on', mode === 'heat'); document.getElementById('btn-mode').innerText = `Mode: ${mode.charAt(0).toUpperCase() + mode.slice(1)}`; render(); }
+        function toggleMode() { 
+            mode = (mode === 'entry') ? 'heat' : 'entry'; 
+            document.body.classList.toggle('heat-mode-on', mode === 'heat'); 
+            document.getElementById('btn-mode').innerText = mode === 'heat' ? 'Mode: Heat' : 'Mode: Entry'; 
+            render(); 
+        }
         function toggleView() { view = (view === 'front') ? 'back' : 'front'; document.getElementById('canvas-container').classList.toggle('showing-back'); render(); }
         function applyHeat() { 
             document.querySelectorAll('.body-part').forEach(el => el.classList.remove('heat-low', 'heat-med', 'heat-high'));
@@ -357,8 +658,8 @@
         function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
         function resetData() { if(confirm("Clear data?")) { data = []; save(); render(); } }
         function exportCSV() {
-            let csv = "Part,Intensity,Types,Notes,Start,End,Duration\n";
-            data.forEach(x => csv += `"${x.part}",${x.val},"${x.types.join('|')}","${x.notes}","${new Date(x.start).toLocaleString()}","${x.end ? new Date(x.end).toLocaleString() : 'Active'}","${getDuration(x.start, x.end)}"\n`);
+            let csv = "Part,Intensity,Types,Medication,Notes,Start,End,Duration\n";
+            data.forEach(x => csv += `"${x.part}",${x.val},"${x.types.join('|')}","${x.meds||''}","${x.notes}","${new Date(x.start).toLocaleString()}","${x.end ? new Date(x.end).toLocaleString() : 'Active'}","${getDuration(x.start, x.end)}"\n`);
             const blob = new Blob([csv], {type:'text/csv'});
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='symptoms.csv'; a.click();
         }
