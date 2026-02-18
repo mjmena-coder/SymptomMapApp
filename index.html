@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v1.2.0</title>
+    <title>Symptom Mapper v1.3.0</title>
     <style>
         :root { --bg: #0f172a; --primary: #3b82f6; --text: #f1f5f9; --stroke: #475569; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
@@ -96,7 +96,9 @@
         /* CARDS */
         .log-card { position: relative; background: #1e293b; padding: 12px; border-radius: 12px; margin-bottom: 10px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.2); width: 100%; max-width: 320px; box-sizing: border-box; }
         .active-card { border-left-color: #f59e0b; background: #422006; }
-        .del-btn { position: absolute; top: 8px; right: 8px; background: #7f1d1d; color: #fecaca; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; }
+        .del-btn { position: absolute; top: 8px; right: 8px; background: #7f1d1d; color: #fecaca; padding: 6px; border-radius: 4px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
+        .del-btn:hover { background: #991b1b; }
+        .del-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
         /* MODAL & DRAWERS */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; }
@@ -127,7 +129,7 @@
 
     <div class="header">
         <h2 style="margin:0">Symptom Mapper</h2>
-        <div class="version-tag">v1.2.0 | ANALYTICS + HISTORY</div>
+        <div class="version-tag">v1.3.0 | COLLAPSIBLE HISTORY + SAFEGUARDS</div>
     </div>
 
     <div class="config-row">
@@ -613,29 +615,83 @@
             const actives = data.filter(x => !x.end);
             const pasts = data.filter(x => x.end);
 
-            activeDiv.innerHTML = actives.length ? "<h4 style='margin:10px 0'>Active</h4>" + actives.map(x => `
-                <div class="log-card active-card">
+            // Active symptoms - show date/time
+            activeDiv.innerHTML = actives.length ? "<h4 style='margin:10px 0'>Active</h4>" + actives.map(x => {
+                const startDate = new Date(x.start);
+                const dateStr = startDate.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'});
+                return `<div class="log-card active-card">
                     <strong>${x.part}</strong> (${x.val}/10)<br><small>${x.types.join(' • ')}</small>
-                    <span style="display:block; font-size:0.75rem; color:var(--primary); font-weight:bold; margin-top:4px;">Began at: ${fmtTime(x.start)}</span>
+                    <span style="display:block; font-size:0.75rem; color:#94a3b8; margin-top:2px;">${dateStr} ${fmtTime(x.start)}</span>
                     <div style="display:flex; gap:5px; margin-top:8px;">
                         <button onclick="endLog(${x.id})" style="flex:2; background:#000; color:white; padding:8px; border-radius:5px; border:none; font-weight:bold;">End Now</button>
                         <button onclick="doEdit(${x.id})" style="flex:1; background:#64748b; color:white; padding:8px; border-radius:5px; border:none; font-weight:bold;">Edit</button>
                     </div>
-                    <button class="del-btn" onclick="deleteItem(${x.id})">Del</button>
-                </div>`).join('') : "";
+                    <button class="del-btn" onclick="deleteItem(${x.id})"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+                </div>`;
+            }).join('') : "";
 
-            historyDiv.innerHTML = pasts.length ? "<h4 style='margin:10px 0'>History</h4>" + pasts.slice(0,10).map(x => `
-                <div class="log-card">
-                    <strong>${x.part}</strong> (${x.val}/10)<br>
-                    <small style="display:block; margin-top:2px;">${fmtTime(x.start)} - ${fmtTime(x.end)} (${getDuration(x.start, x.end)})</small>
-                    <button onclick="doEdit(${x.id})" style="width:100%; background:#64748b; color:white; padding:6px; border-radius:5px; border:none; font-size:11px; margin-top:8px;">Edit Details</button>
-                    <button class="del-btn" onclick="deleteItem(${x.id})">Del</button>
-                </div>`).join('') : "";
+            // History - group by date with collapsible sections
+            if (pasts.length) {
+                const byDate = {};
+                pasts.forEach(x => {
+                    const dateKey = new Date(x.start).toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'});
+                    if (!byDate[dateKey]) byDate[dateKey] = [];
+                    byDate[dateKey].push(x);
+                });
+
+                const sortedDates = Object.keys(byDate).sort((a, b) => {
+                    return new Date(byDate[b][0].start) - new Date(byDate[a][0].start);
+                });
+
+                historyDiv.innerHTML = "<h4 style='margin:10px 0'>History</h4>" + sortedDates.map(dateKey => {
+                    const dayEntries = byDate[dateKey];
+                    const dayId = dateKey.replace(/[^a-z0-9]/gi, '');
+                    return `
+                        <div style="margin-bottom:10px;">
+                            <button onclick="toggleDay(\'${dayId}\')" style="width:100%; background:#334155; color:#f1f5f9; padding:8px; border-radius:8px; border:none; font-weight:bold; text-align:left; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                                <span>${dateKey} (${dayEntries.length})</span>
+                                <span id="icon-${dayId}">▼</span>
+                            </button>
+                            <div id="day-${dayId}" style="display:none; margin-top:5px;">
+                                ${dayEntries.map(x => `
+                                    <div class="log-card">
+                                        <strong>${x.part}</strong> (${x.val}/10)<br>
+                                        <small style="display:block; margin-top:2px;">${fmtTime(x.start)} - ${fmtTime(x.end)} (${getDuration(x.start, x.end)})</small>
+                                        <button onclick="doEdit(${x.id})" style="width:100%; background:#64748b; color:white; padding:6px; border-radius:5px; border:none; font-size:11px; margin-top:8px;">Edit Details</button>
+                                        <button class="del-btn" onclick="deleteItem(${x.id})"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                historyDiv.innerHTML = "";
+            }
             applyHeat();
         }
 
+        function toggleDay(dayId) {
+            const dayDiv = document.getElementById('day-' + dayId);
+            const icon = document.getElementById('icon-' + dayId);
+            if (dayDiv.style.display === 'none' || dayDiv.style.display === '') {
+                dayDiv.style.display = 'block';
+                icon.innerText = '▲';
+            } else {
+                dayDiv.style.display = 'none';
+                icon.innerText = '▼';
+            }
+        }
+
         function closePop() { document.getElementById('pop').style.display = 'none'; editingId = null; }
-        function endLog(id) { const i = data.find(x => x.id === id); if(i) { i.end = Date.now(); save(); render(); }}
+        function endLog(id) { 
+            const i = data.find(x => x.id === id); 
+            if(i && confirm(`End symptom for ${i.part}?`)) { 
+                i.end = Date.now(); 
+                save(); 
+                render(); 
+            }
+        }
         function deleteItem(id) { if(confirm("Delete?")) { data = data.filter(x => x.id !== id); save(); render(); }}
         function toggleMode() { 
             mode = (mode === 'entry') ? 'heat' : 'entry'; 
@@ -658,10 +714,13 @@
         function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
         function resetData() { if(confirm("Clear data?")) { data = []; save(); render(); } }
         function exportCSV() {
+            const now = new Date();
+            const timestamp = now.toISOString().slice(0,10).replace(/-/g, '') + '_' + 
+                              now.toTimeString().slice(0,5).replace(/:/g, '');
             let csv = "Part,Intensity,Types,Medication,Notes,Start,End,Duration\n";
             data.forEach(x => csv += `"${x.part}",${x.val},"${x.types.join('|')}","${x.meds||''}","${x.notes}","${new Date(x.start).toLocaleString()}","${x.end ? new Date(x.end).toLocaleString() : 'Active'}","${getDuration(x.start, x.end)}"\n`);
             const blob = new Blob([csv], {type:'text/csv'});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='symptoms.csv'; a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download=`symptoms_${timestamp}.csv`; a.click();
         }
         setInterval(render, 30000);
         render();
