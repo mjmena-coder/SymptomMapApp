@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Symptom Mapper v1.3.0</title>
+    <title>Symptom Mapper v1.3.1</title>
     <style>
         :root { --bg: #0f172a; --primary: #3b82f6; --text: #f1f5f9; --stroke: #475569; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
@@ -122,19 +122,13 @@
         input[type="range"].rev-slider { width: 100%; appearance: none; height: 8px; border-radius: 5px; background: #e2e8f0; outline: none; margin: 15px 0; }
         input[type="range"].rev-slider::-webkit-slider-thumb { appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); border: 3px solid white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-        #status-log { width: 100%; max-width: 320px; height: 60px; font-size: 10px; font-family: monospace; background: #000; color: #0f0; padding: 8px; border-radius: 8px; overflow-y: auto; margin-top: 10px; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <h2 style="margin:0">Symptom Mapper</h2>
-        <div class="version-tag">v1.3.0 | COLLAPSIBLE HISTORY + SAFEGUARDS</div>
-    </div>
-
-    <div class="config-row">
-        <span>Check-in Interval:</span>
-        <span><input type="number" id="remind-min" class="input-mini" value="15"> mins</span>
+        <div class="version-tag">v1.3.1 | COLLAPSIBLE HISTORY + SAFEGUARDS</div>
     </div>
 
     <div class="controls">
@@ -282,7 +276,6 @@
     <div id="list-active" style="width:100%; max-width:320px;"></div>
     <div id="list-history" style="width:100%; max-width:320px; margin-top:10px;"></div>
 
-    <div id="status-log">LOG: Waiting for entry...</div>
 
     <div id="pop" class="modal">
         <div class="modal-content">
@@ -397,12 +390,6 @@
         let data = JSON.parse(localStorage.getItem(KEY)) || [];
 
         // UI HELPERS
-        function logToBox(msg) {
-            const box = document.getElementById('status-log');
-            box.innerHTML += `<br>[${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}] ${msg}`;
-            box.scrollTop = box.scrollHeight;
-        }
-
         function fmtTime(ts) {
             return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
@@ -601,10 +588,8 @@
             if (editingId) {
                 const idx = data.findIndex(x => x.id === editingId);
                 data[idx] = { ...data[idx], val: parseInt(document.getElementById('int-slide').value), types, notes, meds, start: startTs, end: endTs };
-                logToBox(`Updated: ${activePart}`);
             } else {
                 data.unshift({ id: Date.now(), part: activePart, val: parseInt(document.getElementById('int-slide').value), start: startTs, lastCheck: Date.now(), end: null, notes, types, meds });
-                logToBox(`Logged: ${activePart}`);
             }
             save(); closePop(); render();
         }
